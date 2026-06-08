@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* ==========================================
+     STRICT THREE-COLOR HARMONY THEME (KIREEYE)
+     ==========================================
+     Color 1: Luxury Baltic Teal (#0f766e) - Brand Accent
+     Color 2: Premium Alabaster Alabaster (#fafaf9) - Off-white Light Mode Background
+     Color 3: Obsidian Charcoal Obsidian (#0c0a09) - Deep Contrast, Text & Slate Darks
+  */
+
+  /* Color 1: Primary Brand Accent - Luxury Baltic Teal */
+  --color-emerald-50: #f0fdfa;
+  --color-emerald-100: #ccfbf1;
+  --color-emerald-200: #99f6e4;
+  --color-emerald-300: #5eead4;
+  --color-emerald-400: #2dd4bf;
+  --color-emerald-500: #0d9488;
+  --color-emerald-600: #0f766e;
+  --color-emerald-700: #115e59;
+  --color-emerald-800: #134e4a;
+  --color-emerald-955: #042f2e;
+
+  /* Unify remaining color systems to avoid color dilution (3-col limit constraint) */
+  --color-blue-50: #f0fdfa;
+  --color-blue-100: #ccfbf1;
+  --color-blue-500: #0d9488;
+  --color-blue-600: #0f766e;
+  --color-blue-700: #115e59;
+  --color-blue-900: #134e4a;
+  --color-blue-950: #042f2e;
+
+  --color-indigo-50: #f0fdfa;
+  --color-indigo-100: #ccfbf1;
+  --color-indigo-500: #0d9488;
+  --color-indigo-600: #0f766e;
+  --color-indigo-700: #115e59;
+
+  /* Color 2 & 3: Neutral System (Aesthetic light stone-alabaster to rich midnight slate) */
+  --color-slate-50: #fafaf9;
+  --color-slate-100: #f5f5f4;
+  --color-slate-200: #e7e5e4;
+  --color-slate-300: #d6d3d1;
+  --color-slate-350: #c2bfae;
+  --color-slate-400: #a8a29e;
+  --color-slate-450: #8e8a86;
+  --color-slate-500: #78716c;
+  --color-slate-600: #57534e;
+  --color-slate-700: #44403c;
+  --color-slate-800: #1c1917; /* Base dark elements and cards */
+  --color-slate-850: #171412;
+  --color-slate-900: #0c0a09; /* Core Dark Mode Base */
+  --color-slate-950: #050404; /* Ultimate Obsidian Depth */
+
+  /* Neutral mappings to preserve absolute clean lines */
+  --color-gray-50: #fafaf9;
+  --color-gray-100: #f5f5f4;
+  --color-gray-200: #e7e5e4;
+  --color-gray-300: #d6d3d1;
+  --color-gray-400: #a8a29e;
+  --color-gray-500: #78716c;
+  --color-gray-600: #57534e;
+  --color-gray-700: #44403c;
+  --color-gray-800: #1c1917;
+  --color-gray-900: #0c0a09;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 118.75%; /* Scales up all rem-based typography across the layout for enhanced readability */
+}
+
+body {
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Glassmorphism custom design helper class */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-effect {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom scrollbars to blend with modern Real Estate styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Custom shadow to give depth to premium property displays */
+.premium-shadow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+}
+.dark .premium-shadow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
+}
+

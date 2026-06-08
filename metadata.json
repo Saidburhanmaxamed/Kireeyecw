@@ -1,0 +1,6 @@
+{
+  "name": "Kireeye",
+  "description": "Kireeye - Waa madal aad ka heli karto guryaha, iyo dukaamada kirada iyo ganacsiga ah ee Caabudwaaq. A premium real estate and commercial marketplace platform for Abudwak.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
