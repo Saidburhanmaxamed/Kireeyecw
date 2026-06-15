@@ -132,7 +132,7 @@ export default function PropertyGrid({
             {language === "en" ? "Kireeye Catalogue" : "Guryaha Kireeye"}
           </span>
           <h2 className="font-display font-black text-4xl sm:text-5xl lg:text-6xl text-slate-950 dark:text-white mt-4 tracking-tighter flex items-center justify-center gap-2.5 flex-wrap">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-emerald-800 to-emerald-600 dark:from-white dark:via-emerald-400 dark:to-teal-300 drop-shadow-sm">{dict.featuredProperties}</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-indigo-600 to-indigo-500 dark:from-white dark:via-indigo-400 dark:to-cyan-300 drop-shadow-sm">{dict.featuredProperties}</span>
             {regionFilter && (
               <span className="text-emerald-600 dark:text-emerald-400 text-3xl sm:text-4xl lg:text-5xl font-extrabold animate-fade-in animate-duration-300">
                 • {regionFilter}
@@ -142,7 +142,7 @@ export default function PropertyGrid({
         </div>
 
         {/* Sorting and Results count header panel */}
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white/95 dark:bg-[#0c130f]/95 border border-emerald-500/10 dark:border-emerald-500/15 p-5 rounded-2xl mb-10 gap-4 shadow-md backdrop-blur-md">
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white/95 dark:bg-[#080b14]/95 border border-emerald-500/10 dark:border-emerald-500/15 p-5 rounded-2xl mb-10 gap-4 shadow-md backdrop-blur-md">
           
           <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 flex-wrap">
             <span>{language === "en" ? "Showing" : "Hadda waxaa muuqda"}</span>
@@ -169,7 +169,7 @@ export default function PropertyGrid({
               className={`w-full sm:w-auto flex items-center justify-center gap-1.5 px-4.5 py-2.5 rounded-xl text-xs font-black transition-all duration-200 border cursor-pointer ${
                 bestOnly 
                   ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 border-amber-400 shadow-md shadow-amber-500/15" 
-                  : "bg-stone-50 dark:bg-[#111c16] text-slate-800 dark:text-slate-350 border-slate-200 dark:border-emerald-500/10 hover:bg-stone-100 dark:hover:bg-[#15241d]"
+                  : "bg-stone-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-350 border-slate-200 dark:border-emerald-500/10 hover:bg-stone-100 dark:hover:bg-[#111624]"
               }`}
             >
               <span className={`${bestOnly ? "text-slate-950 animate-pulse" : "text-amber-500 font-bold"}`}>★</span>
@@ -188,12 +188,12 @@ export default function PropertyGrid({
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="bg-stone-50 dark:bg-[#111c16] text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-emerald-500/10 outline-none focus:border-emerald-500 cursor-pointer"
+                className="bg-stone-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-emerald-500/10 outline-none focus:border-emerald-500 cursor-pointer"
               >
-                <option value="newest" className="bg-white dark:bg-[#0c130f]">{language === "en" ? "Newest Listings" : "Kuwa ugu Cusub"}</option>
-                <option value="price-asc" className="bg-white dark:bg-[#0c130f]">{language === "en" ? "Price: Low to High" : "Qiimo: Hoose ilaa Sare"}</option>
-                <option value="price-desc" className="bg-white dark:bg-[#0c130f]">{language === "en" ? "Price: High to Low" : "Qiimo: Sare ilaa Hoose"}</option>
-                <option value="size-desc" className="bg-white dark:bg-[#0c130f]">{language === "en" ? "Area Size: Largest" : "Baaxad: Ugu Baaxad weyn"}</option>
+                <option value="newest" className="bg-white dark:bg-[#050810]">{language === "en" ? "Newest Listings" : "Kuwa ugu Cusub"}</option>
+                <option value="price-asc" className="bg-white dark:bg-[#050810]">{language === "en" ? "Price: Low to High" : "Qiimo: Hoose ilaa Sare"}</option>
+                <option value="price-desc" className="bg-white dark:bg-[#050810]">{language === "en" ? "Price: High to Low" : "Qiimo: Sare ilaa Hoose"}</option>
+                <option value="size-desc" className="bg-white dark:bg-[#050810]">{language === "en" ? "Area Size: Largest" : "Baaxad: Ugu Baaxad weyn"}</option>
               </select>
             </div>
             

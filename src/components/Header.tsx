@@ -86,7 +86,7 @@ export default function Header({
   };
 
   return (
-    <header id="header-root" className="sticky top-0 z-50 w-full transition-all duration-300 border-b border-[#034d2d]/40 bg-[#012a18] text-white shadow-xl">
+    <header id="header-root" className="sticky top-0 z-50 w-full transition-all duration-300 border-b border-slate-800 bg-[#050810] text-white shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           

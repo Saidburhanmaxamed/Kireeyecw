@@ -128,7 +128,7 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
             <button
                id="new-entries-notification-pill"
                onClick={onShowNewEntries}
-               className="group inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-950/80 border border-emerald-500/30 hover:border-emerald-400 text-emerald-200 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer hover:bg-emerald-950 shadow-md shadow-emerald-500/5"
+               className="group inline-flex items-center gap-3 px-5 py-2.5 bg-emerald-955/80 border border-emerald-500/30 hover:border-emerald-400 text-emerald-200 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer hover:bg-slate-900 shadow-md shadow-emerald-500/5"
                title={language === "en" ? "Filter All New Entries" : "Shaandhee Guryaha Cusub"}
             >
               <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase border border-emerald-500/25">
@@ -148,7 +148,7 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
 
         {/* Sleek Minimalist Search Bar at Home */}
         <div id="home-search-bar" className="max-w-4xl mx-auto mt-10">
-          <form onSubmit={handleApplyFilters} className="bg-emerald-950/90 border border-emerald-500/30 p-2.5 rounded-2xl backdrop-blur-md shadow-2xl flex flex-col md:flex-row gap-2.5 items-center">
+          <form onSubmit={handleApplyFilters} className="bg-slate-900/95 border border-emerald-500/30 p-2.5 rounded-2xl backdrop-blur-md shadow-2xl flex flex-col md:flex-row gap-2.5 items-center">
             
             {/* 1. Neighborhood Selector */}
             <div className="relative w-full md:w-1/3">
@@ -163,16 +163,16 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
                 }}
                 className="w-full bg-transparent text-white pl-10 pr-4 py-3 rounded-xl border-0 focus:ring-0 focus:outline-none text-xs font-bold tracking-wide transition-all cursor-pointer"
               >
-                <option value="" className="bg-[#01180e] text-emerald-250">
+                <option value="" className="bg-[#050810] text-[#818cf8]">
                   {language === "en" ? "Select Neighborhood (All)" : "Kala dooro Xaafada (Dhammaan)"}
                 </option>
                 {SOMALI_REGIONS.map(reg => (
-                  <option key={reg} value={reg} className="bg-[#01180e] text-white font-bold">{reg}</option>
+                  <option key={reg} value={reg} className="bg-[#050810] text-white font-bold">{reg}</option>
                 ))}
               </select>
             </div>
 
-            <div className="hidden md:block h-6 w-[1px] bg-emerald-800/50" />
+            <div className="hidden md:block h-6 w-[1px] bg-slate-800/50" />
 
             {/* 2. Category Selector */}
             <div className="relative w-full md:w-1/3">
@@ -187,18 +187,18 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
                 }}
                 className="w-full bg-transparent text-white pl-10 pr-4 py-3 rounded-xl border-0 focus:ring-0 focus:outline-none text-xs font-bold tracking-wide transition-all cursor-pointer"
               >
-                <option value="" className="bg-[#01180e] text-emerald-250">
+                <option value="" className="bg-[#050810] text-[#818cf8]">
                   {language === "en" ? "Property Type (All)" : "Nooca guryaha (Dhammaan)"}
                 </option>
                 {Object.values(PropertyCategory).map(cat => (
-                  <option key={cat} value={cat} className="bg-[#01180e] text-white font-bold">
+                  <option key={cat} value={cat} className="bg-[#050810] text-white font-bold">
                     {getCategoryLabel(cat)}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="hidden md:block h-6 w-[1px] bg-emerald-800/50" />
+            <div className="hidden md:block h-6 w-[1px] bg-slate-800/50" />
 
             {/* 3. Status/Listing Type Selector */}
             <div className="relative w-full md:w-1/3">
@@ -213,13 +213,13 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
                 }}
                 className="w-full bg-transparent text-white pl-10 pr-4 py-3 rounded-xl border-0 focus:ring-0 focus:outline-none text-xs font-bold tracking-wide transition-all cursor-pointer"
               >
-                <option value="" className="bg-[#01180e] text-emerald-255">
+                <option value="" className="bg-[#050810] text-[#818cf8]">
                   {language === "en" ? "Listing Status (All)" : "Kiro ama Iib (Dhammaan)"}
                 </option>
-                <option value={PropertyStatus.Rent} className="bg-[#01180e] text-white font-bold">
+                <option value={PropertyStatus.Rent} className="bg-[#050810] text-white font-bold">
                   {language === "en" ? "For Rent" : "Kiro (Rent)"}
                 </option>
-                <option value={PropertyStatus.Sale} className="bg-[#01180e] text-white font-bold">
+                <option value={PropertyStatus.Sale} className="bg-[#050810] text-white font-bold">
                   {language === "en" ? "For Sale" : "Iib (Sale)"}
                 </option>
               </select>
