@@ -54,7 +54,7 @@ export default function PropertyCard({
     <div 
       id={`property-card-${property.id}`}
       onClick={() => onViewDetails(property.id)}
-      className="group flex flex-col h-full bg-white dark:bg-[#080b14] border border-gray-100/80 dark:border-slate-800/55 rounded-2xl overflow-hidden premium-shadow cursor-pointer hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/[0.02] transition-all duration-300"
+      className="group flex flex-col h-full bg-white dark:bg-[#0b110e] border border-gray-100/80 dark:border-emerald-950/40 rounded-2xl overflow-hidden premium-shadow cursor-pointer hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/[0.02] transition-all duration-300"
     >
       
       {/* Property Image Container */}
