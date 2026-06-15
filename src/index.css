@@ -9,65 +9,66 @@
   /* ==========================================
      STRICT THREE-COLOR HARMONY THEME (KIREEYE)
      ==========================================
-     Color 1: Luxury Baltic Teal (#0f766e) - Brand Accent
-     Color 2: Premium Alabaster Alabaster (#fafaf9) - Off-white Light Mode Background
-     Color 3: Obsidian Charcoal Obsidian (#0c0a09) - Deep Contrast, Text & Slate Darks
+     Color 1: Luxury Emerald Green (#10b981) - Brand Accent
+     Color 2: Premium Alabaster (#fafaf9) - Off-white Light Mode Background
+     Color 3: Obsidian Charcoal (#0c0a09) - Deep Contrast, Text & Slate Darks
   */
 
-  /* Color 1: Primary Brand Accent - Luxury Baltic Teal */
-  --color-emerald-50: #f0fdfa;
-  --color-emerald-100: #ccfbf1;
-  --color-emerald-200: #99f6e4;
-  --color-emerald-300: #5eead4;
-  --color-emerald-400: #2dd4bf;
-  --color-emerald-500: #0d9488;
-  --color-emerald-600: #0f766e;
-  --color-emerald-700: #115e59;
-  --color-emerald-800: #134e4a;
-  --color-emerald-955: #042f2e;
+  /* Color 1: Primary Brand Accent - Luxury Emerald Green */
+  --color-emerald-50: #f0fdf4;
+  --color-emerald-100: #dcfce7;
+  --color-emerald-200: #bbf7d0;
+  --color-emerald-300: #86efac;
+  --color-emerald-400: #4ade80;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-955: #022c22;
 
   /* Unify remaining color systems to avoid color dilution (3-col limit constraint) */
-  --color-blue-50: #f0fdfa;
-  --color-blue-100: #ccfbf1;
-  --color-blue-500: #0d9488;
-  --color-blue-600: #0f766e;
-  --color-blue-700: #115e59;
-  --color-blue-900: #134e4a;
-  --color-blue-950: #042f2e;
+  --color-blue-50: #f0fdf4;
+  --color-blue-100: #dcfce7;
+  --color-blue-500: #10b981;
+  --color-blue-600: #059669;
+  --color-blue-700: #047857;
+  --color-blue-900: #065f46;
+  --color-blue-950: #022c22;
 
-  --color-indigo-50: #f0fdfa;
-  --color-indigo-100: #ccfbf1;
-  --color-indigo-500: #0d9488;
-  --color-indigo-600: #0f766e;
-  --color-indigo-700: #115e59;
+  /* Form color bindings */
+  --color-indigo-50: #f0fdf4;
+  --color-indigo-100: #dcfce7;
+  --color-indigo-500: #10b981;
+  --color-indigo-600: #059669;
+  --color-indigo-700: #047857;
 
   /* Color 2 & 3: Neutral System (Aesthetic light stone-alabaster to rich midnight slate) */
-  --color-slate-50: #fafaf9;
-  --color-slate-100: #f5f5f4;
-  --color-slate-200: #e7e5e4;
-  --color-slate-300: #d6d3d1;
-  --color-slate-350: #c2bfae;
-  --color-slate-400: #a8a29e;
-  --color-slate-450: #8e8a86;
-  --color-slate-500: #78716c;
-  --color-slate-600: #57534e;
-  --color-slate-700: #44403c;
-  --color-slate-800: #1c1917; /* Base dark elements and cards */
-  --color-slate-850: #171412;
-  --color-slate-900: #0c0a09; /* Core Dark Mode Base */
-  --color-slate-950: #050404; /* Ultimate Obsidian Depth */
+  --color-slate-50: #f2f6f3;
+  --color-slate-100: #e5ece7;
+  --color-slate-200: #cbd6cf;
+  --color-slate-300: #9eb1a4;
+  --color-slate-350: #8ba091;
+  --color-slate-400: #6d8274;
+  --color-slate-450: #576b5d;
+  --color-slate-500: #425547;
+  --color-slate-600: #314236;
+  --color-slate-700: #212c24;
+  --color-slate-800: #0a1f15; /* Luxury Midnight Spruce forest element */
+  --color-slate-850: #06180f; /* Deeper Spruce element */
+  --color-slate-900: #04100a; /* Premium Classy Midnight Pine Base */
+  --color-slate-950: #020906; /* Ultimate Elegant Forest Depth */
 
   /* Neutral mappings to preserve absolute clean lines */
-  --color-gray-50: #fafaf9;
-  --color-gray-100: #f5f5f4;
-  --color-gray-200: #e7e5e4;
-  --color-gray-300: #d6d3d1;
-  --color-gray-400: #a8a29e;
-  --color-gray-500: #78716c;
-  --color-gray-600: #57534e;
-  --color-gray-700: #44403c;
-  --color-gray-800: #1c1917;
-  --color-gray-900: #0c0a09;
+  --color-gray-50: #f2f6f3;
+  --color-gray-100: #e5ece7;
+  --color-gray-200: #cbd6cf;
+  --color-gray-300: #9eb1a4;
+  --color-gray-400: #6d8274;
+  --color-gray-500: #425547;
+  --color-gray-600: #314236;
+  --color-gray-700: #212c24;
+  --color-gray-800: #0a1f15;
+  --color-gray-900: #04100a;
 }
 
 html {
@@ -117,4 +118,151 @@ body {
 .dark .premium-shadow {
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
 }
+
+/* =======================================================
+   THICKER BORDER FRAME FOR ALL INPUTS, SELECTS, TEXTAREAS & FORMS
+   (Forms iyo dhamaan input yada border frame xoogaa thick / 2px ka dhig)
+   ======================================================= */
+
+/* Force 2px solid border on inputs, select boxes, and textareas */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+select,
+textarea,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]) {
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-color: #d6d3d1 !important; /* Stone-300 / Bold grey for high visibility */
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* Dark mode compatibility for inputs */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="tel"],
+.dark input[type="number"],
+.dark input[type="search"],
+.dark input[type="url"],
+.dark select,
+.dark textarea,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]) {
+  border-color: #44403c !important; /* Stone-700 / Bold slate dark stroke */
+  background-color: #0c0a09 !important; /* Consistent with obsidian obsidian */
+}
+
+/* Hover style for input boxes */
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="tel"]:hover,
+input[type="number"]:hover,
+input[type="search"]:hover,
+input[type="url"]:hover,
+select:hover,
+textarea:hover,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):hover {
+  border-color: #a8a29e !important; /* Stone-400 */
+}
+
+.dark input[type="text"]:hover,
+.dark input[type="email"]:hover,
+.dark input[type="password"]:hover,
+.dark input[type="tel"]:hover,
+.dark input[type="number"]:hover,
+.dark input[type="search"]:hover,
+.dark input[type="url"]:hover,
+.dark select:hover,
+.dark textarea:hover,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):hover {
+  border-color: #78716c !important; /* Stone-500 */
+}
+
+/* Focus/Active outline indicator */
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+select:focus,
+textarea:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):focus {
+  border-color: #10b981 !important; /* Brand Emerald Green Accent */
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+  outline: none !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="tel"]:focus,
+.dark input[type="number"]:focus,
+.dark input[type="search"]:focus,
+.dark input[type="url"]:focus,
+.dark select:focus,
+.dark textarea:focus,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):focus {
+  border-color: #34d399 !important; /* Light Brand Emerald Accent */
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2) !important;
+  outline: none !important;
+}
+
+/* =======================================================
+   VIVID AND HIGHLY VISIBLE FORM LABELS AND DESCRIPTIONS
+   (Form label-ada iyo qoraalada cinwaanka ee ka dhig mid muuqda)
+   ======================================================= */
+label, 
+.form-label,
+input::placeholder,
+textarea::placeholder {
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  color: #1e293b !important; /* Extremely clear Slate-800 in light mode */
+}
+
+/* Specific class combinations that might override with soft slate colors */
+label.text-slate-400,
+label.text-slate-500,
+label.text-slate-600 {
+  color: #0f172a !important; /* Pitch Obsidian Blue/Dark Grey for extreme legibility */
+}
+
+/* Ensure form descriptions are vivid too */
+.form-description,
+.form-info-text,
+p.text-slate-400 {
+  color: #334155 !important; /* Visible Slate-700 */
+}
+
+/* Dark mode overrides for excellent visibility */
+.dark label,
+.dark .form-label {
+  color: #f8fafc !important; /* Crisp, ultra-readable Off-White Slate-50 */
+}
+
+.dark label.text-slate-400,
+.dark label.text-slate-500,
+.dark label.text-slate-600 {
+  color: #f1f5f9 !important; /* Brilliant Slate-100 */
+}
+
+.dark .form-description,
+.dark .form-info-text,
+.dark p.text-slate-400 {
+  color: #cbd5e1 !important; /* Highly visible Slate-300 */
+}
+
+/* Let's highlight specific labels that serve as section titles or action headers */
+label {
+  font-size: 0.75rem !important; /* Keep it compact 12px but super high contrast */
+  text-transform: uppercase !important;
+}
+
 

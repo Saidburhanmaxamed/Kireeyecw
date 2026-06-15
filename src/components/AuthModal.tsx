@@ -285,11 +285,11 @@ export default function AuthModal({
   return (
     <div 
       id="auth-modal-overlay" 
-      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all"
+      className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 transition-all"
     >
       <div 
         id="auth-modal-card" 
-        className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden transition-colors"
+        className="relative w-full sm:max-w-md h-full sm:h-auto sm:max-h-[92vh] bg-white dark:bg-slate-900 border-0 sm:border-2 border-gray-100 dark:border-slate-800 rounded-none sm:rounded-3xl p-6 sm:p-8 shadow-2xl overflow-y-auto select-none transition-all scrollbar-thin scrollbar-thumb-emerald-500/20"
       >
         
         {/* Floating Close Button */}
@@ -411,8 +411,8 @@ export default function AuthModal({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">
                 {loginType === "admin" ? "Admin Email Address" : "Broker Username"}
               </label>
               <div className="relative">
@@ -432,9 +432,9 @@ export default function AuthModal({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Passcode (password)</label>
+            <div className="space-y-1 text-left">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">Passcode (password)</label>
                 <button
                   type="button"
                   onClick={() => setActiveTab("forgot")}
@@ -525,8 +525,8 @@ export default function AuthModal({
                       ✓ Access Approved: You can create a new account!
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+                    <div className="space-y-1 text-left">
+                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Full Name</label>
                       <input
                         type="text"
                         placeholder="Ahmed Warsame"
@@ -538,8 +538,8 @@ export default function AuthModal({
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+                      <div className="space-y-1 text-left">
+                        <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Email Address</label>
                         <input
                           type="email"
                           placeholder="name@domain.so"
@@ -549,8 +549,8 @@ export default function AuthModal({
                           className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone</label>
+                      <div className="space-y-1 text-left">
+                        <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Phone</label>
                         <input
                           type="tel"
                           placeholder="+252615..."
@@ -562,8 +562,8 @@ export default function AuthModal({
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Privilege Role</label>
+                    <div className="space-y-1 text-left">
+                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Privilege Role</label>
                       <select
                         value={role}
                         onChange={(e) => setRole(e.target.value as "agent" | "buyer")}
@@ -575,8 +575,8 @@ export default function AuthModal({
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Access Password</label>
+                    <div className="space-y-1 text-left">
+                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Access Password</label>
                       <input
                         type="password"
                         placeholder="Set account password"
@@ -612,8 +612,8 @@ export default function AuthModal({
         {activeTab === "forgot" && (
           <form onSubmit={handleForgotSubmit} className="space-y-4">
             
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+            <div className="space-y-1 text-left">
+              <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <input

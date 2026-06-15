@@ -9,12 +9,12 @@ export enum PropertyStatus {
 }
 
 export enum PropertyCategory {
-  HouseRent = "Houses for Rent",
-  HouseSale = "Houses for Sale",
+  House = "Properties",
   LandSale = "Land for Sale",
   Apartment = "Apartments",
   Commercial = "Commercial Buildings",
-  Villa = "Villas"
+  Villa = "Villas",
+  CarSale = "Cars for Sale"
 }
 
 export interface Property {
@@ -22,7 +22,7 @@ export interface Property {
   title: string;
   description: string;
   category: string; // From PropertyCategory
-  type: string;     // e.g. "Residential", "Commercial", "Land"
+  type: string;     // e.g. "Residential", "Commercial", "Land", "Vehicle"
   price: number;
   location: string; // e.g. "Jigjiga Yar, Hargeisa" or "Liido Beach, Mogadishu"
   region: string;   // e.g. "Mogadishu", "Hargeisa", "Garowe", "Kismayo", "Bosaso"
@@ -39,6 +39,22 @@ export interface Property {
   featured: boolean;
   createdAt: string;
   availableDate?: string; // Optional field for rentals
+  dimensions?: string;    // dimensions for Land (e.g. "15x18m")
+  hasTitleDeed?: boolean; // whether Land has official ownership paperwork
+  zoning?: string;        // Land utilization type (e.g. Residential, Commercial, Farming)
+  numShops?: number;      // Number of shops or separate commercial rooms
+  hasParking?: boolean;   // parking space inclusion
+  rentalDeposit?: number; // deposit amount for rental properties
+  rentalPeriod?: string;  // billing period (e.g. "Monthly", "Yearly")
+  includedUtilities?: string; // e.g. "Water, Electricity, Guard"
+  paymentInstallments?: boolean; // allows installment payments for buying or Land sales
+  downPaymentAmount?: number; // initial down payment required if installments are active
+  carMake?: string;        // e.g. "Toyota"
+  carModel?: string;       // e.g. "Land Cruiser"
+  carYear?: number;        // e.g. 2022
+  carTransmission?: string;// e.g. "Automatic" or "Manual"
+  carFuelType?: string;    // e.g. "Petrol", "Diesel", "Hybrid", "Electric"
+  carMileage?: number;     // e.g. 85000
 }
 
 export interface Inquiry {

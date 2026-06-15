@@ -51,11 +51,11 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
   ];
 
   return (
-    <section id="contact" className="py-24 bg-white dark:bg-slate-950 transition-colors">
+    <section id="contact" className="py-10 bg-white dark:bg-slate-950 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header Block */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-8">
           <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
             {language === "en" ? "Get In Touch" : "Nala Soo Xiriir"}
           </span>
@@ -141,7 +141,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
           </div>
 
           {/* Right Panel: Active email submission form */}
-          <div className="lg:col-span-7 bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 sm:p-8 rounded-3xl">
+          <div className="lg:col-span-7 bg-slate-50 dark:bg-slate-900 border-2 border-gray-100 dark:border-slate-800 p-6 sm:p-8 rounded-3xl">
             
             <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white pb-3 border-b border-gray-100 dark:border-slate-800 mb-6 text-left">
               {language === "en" ? "Write Us an Instant Message" : "Noogu Qor Fariin Halkan"}
@@ -162,7 +162,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-400 uppercase">{language === "en" ? "Your Name" : "Magacaaga"}</label>
+                    <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">{language === "en" ? "Your Name" : "Magacaaga"}</label>
                     <input
                       type="text"
                       placeholder={language === "en" ? "e.g. Deqo Salad" : "tusaale. Deeqo Salaad"}
@@ -174,7 +174,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-400 uppercase">{language === "en" ? "Email Address" : "Email-kaaga"}</label>
+                    <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">{language === "en" ? "Email Address" : "Email-kaaga"}</label>
                     <input
                       type="email"
                       placeholder="e.g. deqo@gmail.com"
@@ -188,7 +188,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-400 uppercase">{language === "en" ? "Contact Number (Optional)" : "Taleefankaaga (Ikhiyaari)"}</label>
+                    <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">{language === "en" ? "Contact Number (Optional)" : "Taleefankaaga (Ikhiyaari)"}</label>
                     <input
                       type="tel"
                       placeholder="e.g. +252 61 555 4444"
@@ -199,7 +199,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-400 uppercase">{language === "en" ? "Subject Topic" : "Aqoonta Mawduuca"}</label>
+                    <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">{language === "en" ? "Subject Topic" : "Aqoonta Mawduuca"}</label>
                     <input
                       type="text"
                       placeholder={language === "en" ? "e.g. Inspect Land Plots" : "tusaale. Boosaska Dhulka"}
@@ -212,7 +212,7 @@ export default function ContactPage({ language = "en" }: ContactPageProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-semibold text-slate-400 uppercase">{language === "en" ? "Message Narrative Details" : "Faahfaahinta Fariinta"}</label>
+                  <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">{language === "en" ? "Message Narrative Details" : "Faahfaahinta Fariinta"}</label>
                   <textarea
                     rows={4}
                     placeholder={language === "en" 

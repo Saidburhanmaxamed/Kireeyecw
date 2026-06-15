@@ -96,8 +96,8 @@ export const translations: Record<Language, TranslationDict> = {
     noAlerts: "No new alerts yet.",
     signedInAs: "Signed in as",
 
-    heroTitle: "Reliable Properties, Gated Homes",
-    heroSub: "Kireeye is a premium platform where you can find properties, rentals, and commercial shares/shops in Caabudwaaq.",
+    heroTitle: "The Rental and Sale Marketplace",
+    heroSub: "KireeyeCw is a premium platform where you can find properties, rentals, and commercial shares/shops in Caabudwaaq.",
     searchPlaceholder: "Search properties by name, description, address, or region...",
     propertyType: "Property Type",
     minPrice: "Min Price",
@@ -114,7 +114,7 @@ export const translations: Record<Language, TranslationDict> = {
     closedDeals: "Closed Transactions",
     secureRentals: "Secure Rentals",
 
-    featuredProperties: "Exquisite Verified Listings",
+    featuredProperties: "Available Properties",
     exploreAll: "Explore All Properties",
     noPropertiesFound: "No properties match your current search and filters. Try adjusting them.",
     priceTag: "Price",
@@ -164,7 +164,7 @@ export const translations: Record<Language, TranslationDict> = {
     noAlerts: "Ma jiraan ogeysiisyo cusub.",
     signedInAs: "Waxaad ku gashay",
 
-    heroTitle: "Guryo Ammaan ah & Deegaan Sugan",
+    heroTitle: "Waa goobta kireenta iyo iibka",
     heroSub: "Waa madal aad ka heli karto guryaha, iyo dukaamada kirada iyo ganacsiga ah ee Caabudwaaq.",
     searchPlaceholder: "Ka raadi guryaha magac, faahfaahin, ama xaafad...",
     propertyType: "Nooca Guriga",
@@ -182,7 +182,7 @@ export const translations: Record<Language, TranslationDict> = {
     closedDeals: "Heshiisyo Dhamaaday",
     secureRentals: "Ijaarka la Hubiyey",
 
-    featuredProperties: "Guryaha la Hubiyey ee iibka/kirada ah",
+    featuredProperties: "Guryaha la heli karo",
     exploreAll: "Arag Dhammaan Guryaha",
     noPropertiesFound: "Wax guryo ah looma helin raadintaada. Fadlan beddel filters-ka.",
     priceTag: "Qiimaha",

@@ -50,15 +50,21 @@ export default function FAQ({ language = "en" }: FAQProps) {
   const activeFaqs = language === "en" ? SAMPLE_FAQS : FAQS_SO;
 
   return (
-    <section id="faq" className="py-24 bg-slate-50 dark:bg-slate-900/40 border-b border-gray-100 dark:border-slate-850 transition-colors">
+    <section id="faq" className="py-10 bg-white dark:bg-slate-950/40 border-b border-gray-100 dark:border-slate-850 transition-colors">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
         {/* Header Block */}
-        <div className="text-center mb-16">
-          <h2 className="font-display font-bold text-3xl text-slate-900 dark:text-white mt-1.5 tracking-tight flex items-center justify-center gap-2">
-            <HelpCircle className="h-7 w-7 text-emerald-500" /> {language === "en" ? "Frequently Asked Questions" : "Su'aalaha Badanaa la Is Weydiiyo"}
+        <div className="text-center mb-10">
+          <span className="text-[12px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest font-mono bg-emerald-500/10 dark:bg-emerald-400/10 px-3.5 py-1.5 rounded-full border border-emerald-500/20 shadow-sm inline-block">
+            {language === "en" ? "Customer FAQ" : "Su'aalaha Guud"}
+          </span>
+          <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-slate-950 dark:text-white mt-4 tracking-tighter flex items-center justify-center gap-3 flex-wrap">
+            <HelpCircle className="h-8 w-8 text-emerald-650 dark:text-emerald-450" /> 
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-emerald-600 dark:from-white dark:via-slate-200 dark:to-emerald-400">
+              {language === "en" ? "Frequently Asked Questions" : "Su'aalaha Badanaa la Is Weydiiyo"}
+            </span>
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-3 max-w-xl mx-auto leading-relaxed font-medium">
             {language === "en"
               ? "Everything you need to know about purchasing, renting, and listing property on Kireeye."
               : "Wax kasta oo aad u baahan tahay inaad ka ogaato iibsashada, kiraynta, iyo ku soo daabicidda hantidaada Kireeye."}

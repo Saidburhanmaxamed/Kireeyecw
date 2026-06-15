@@ -7,6 +7,7 @@ import React from "react";
 import { Building2, Facebook, Twitter, Instagram, Linkedin, ArrowUpRight, ShieldCheck, HelpCircle } from "lucide-react";
 
 import { Language } from "../localization";
+import LogoIcon from "./LogoIcon";
 
 interface FooterProps {
   onNavigate: (tabId: string) => void;
@@ -20,10 +21,22 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
   };
 
   const handleLink = (id: string) => {
-    onNavigate(id);
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
+    if (id === "properties" || id === "contact") {
+      onNavigate("home");
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+    } else {
+      onNavigate(id);
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
     }
   };
 
@@ -43,17 +56,17 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
             className="flex items-center gap-2.5 cursor-pointer group"
           >
             <div className="p-2 bg-emerald-600 dark:bg-emerald-500 rounded-lg text-white">
-              <Building2 className="h-5 w-5" />
+              <LogoIcon className="h-5 w-5" />
             </div>
             <span className="font-display font-bold text-lg sm:text-xl tracking-tight text-white">
-              Kire<span className="text-emerald-500">eye</span>
+              Kireeye<span className="text-emerald-500">Cw</span>
             </span>
           </div>
 
           <p className="text-xs sm:text-sm text-slate-400 font-sans leading-relaxed max-w-sm">
             {language === "en" 
-              ? "Kireeye is a premium platform where you can find properties, rentals, and commercial/business shops in Caabudwaaq." 
-              : "Kireeye waa madal aad ka heli karto guryaha, iyo dukaamada kirada iyo ganacsiga ah ee Caabudwaaq."}
+              ? "KireeyeCw is a premium platform where you can find properties, rentals, and commercial/business shops in Caabudwaaq." 
+              : "KireeyeCw waa madal aad ka heli karto guryaha, iyo dukaamada kirada iyo ganacsiga ah ee Caabudwaaq."}
           </p>
 
           {/* Social media connections */}
@@ -76,7 +89,7 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
 
         {/* Directory links column */}
         <div className="md:col-span-3 space-y-4">
-          <h4 className="font-display font-bold text-xs uppercase tracking-widest text-[#10b981] font-mono">
+          <h4 className="font-display font-bold text-xs uppercase tracking-widest text-emerald-500 font-mono">
             {language === "en" ? "Marketplace Guides" : "Hagaha Suuqa"}
           </h4>
           <ul className="space-y-2 text-xs">
@@ -110,7 +123,7 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
 
         {/* Somali Regions Directory column */}
         <div className="md:col-span-4 space-y-4">
-          <h4 className="font-display font-bold text-xs uppercase tracking-widest text-[#10b981] font-mono">
+          <h4 className="font-display font-bold text-xs uppercase tracking-widest text-emerald-500 font-mono">
             {language === "en" ? "Caabudwaaq neighborhoods" : "Xaafadaha Caabudwaaq"}
           </h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -135,7 +148,7 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
           </div>
 
           <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-1 mt-4">
-            <p className="text-[10px] uppercase font-bold text-[#10b981] font-mono flex items-center gap-1">
+            <p className="text-[10px] uppercase font-bold text-emerald-500 font-mono flex items-center gap-1">
               <ShieldCheck className="h-3.5 w-3.5" /> {language === "en" ? "100% VETTED DEEDS" : "100% MULKIYAD HUUBIYE"}
             </p>
             <p className="text-[10px] text-slate-400">
@@ -153,8 +166,8 @@ export default function Footer({ onNavigate, language = "en" }: FooterProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-center">
           <p>
             {language === "en" 
-              ? `© ${currentYear} Kireeye. All rights reserved. Built with pride for returnees and local families.` 
-              : `© ${currentYear} Kireeye. Xuquuqda oo dhan waa tiisa. Ka dhisay jacayl qurba-joogta iyo dadka deegaanka.`}
+              ? `© ${currentYear} KireeyeCw. All rights reserved. Built with pride for returnees and local families.` 
+              : `© ${currentYear} KireeyeCw. Xuquuqda oo dhan waa tiisa. Ka dhisay jacayl qurba-joogta iyo dadka deegaanka.`}
           </p>
           <div className="flex gap-4 font-mono">
             <a href="https://www.kireeyecw.com/privacy" className="hover:text-slate-400">

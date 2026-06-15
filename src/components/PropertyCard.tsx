@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Heart, MapPin, Bed, Bath, Maximize2, Tag, CheckCircle } from "lucide-react";
-import { Property, PropertyStatus } from "../types";
+import { Property, PropertyStatus, PropertyCategory } from "../types";
 import { Language } from "../localization";
 
 interface PropertyCardProps {
@@ -31,14 +31,21 @@ export default function PropertyCard({
   }).format(property.price);
 
   const getCategoryLabel = (cat: string) => {
-    if (language === "en") return cat;
+    if (language === "en") {
+      if (cat === "House" || cat === "Properties") return "Properties";
+      return cat;
+    }
     const cats: Record<string, string> = {
       "Villa": "Fiilla",
       "Apartment": "Aqal/Filaatiko",
-      "HouseRent": "Kiro",
-      "HouseSale": "Iib",
+      "House": "Guryaha",
       "Commercial": "Ganacsi",
-      "Land": "Dhul/Boos"
+      "Land": "Dhul/Boos",
+      "Properties": "Guryaha",
+      "Villas": "Fiilla",
+      "Apartments": "Aqal/Filaatiko",
+      "Commercial Buildings": "Ganacsi",
+      "Land for Sale": "Dhul/Boos"
     };
     return cats[cat] || cat;
   };
@@ -47,7 +54,7 @@ export default function PropertyCard({
     <div 
       id={`property-card-${property.id}`}
       onClick={() => onViewDetails(property.id)}
-      className="group flex flex-col h-full bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden premium-shadow cursor-pointer hover:border-emerald-500/30 transition-all duration-300"
+      className="group flex flex-col h-full bg-white dark:bg-[#0b110e] border border-gray-100/80 dark:border-emerald-950/40 rounded-2xl overflow-hidden premium-shadow cursor-pointer hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/[0.02] transition-all duration-300"
     >
       
       {/* Property Image Container */}
@@ -107,9 +114,11 @@ export default function PropertyCard({
         <div className="space-y-2">
           {/* Rating, Vetted Stamp or Verified Flag */}
           <div className="flex justify-between items-center text-xs gap-2 flex-wrap">
-            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 font-bold font-mono uppercase text-[9px] flex items-center gap-1">
-              <CheckCircle className="h-3 w-3" /> {language === "en" ? "Vetted Title-Deeds" : "Mulkiyad la Hubiyey"}
-            </span>
+            {property.hasTitleDeed && (
+              <span className="px-2.5 py-1 rounded-md bg-amber-400 text-slate-950 font-black font-mono uppercase text-[9px] flex items-center gap-1 shadow-sm border border-amber-300">
+                📜 {language === "en" ? "Title Deed Ready" : "Waraaqo Diyaar"}
+              </span>
+            )}
             <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black tracking-wide text-[11px] uppercase shadow-sm flex items-center gap-1">
               <span className="animate-pulse">📍</span> {property.region}
             </span>
@@ -147,30 +156,99 @@ export default function PropertyCard({
         </div>
 
         {/* Interactive specs row */}
-        <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-gray-100 dark:border-slate-800/80 text-slate-500 dark:text-slate-400">
+        <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-gray-100 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
           
-          <div className="flex items-center gap-1.5 justify-center">
-            <Bed className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-semibold">
-              {property.bedrooms > 0 
-                ? (language === "en" ? `${property.bedrooms} Beds` : `${property.bedrooms} Qolal`) 
-                : "N/A"}
-            </span>
-          </div>
+          {property.category === PropertyCategory.CarSale ? (
+            <>
+              <div className="flex items-center gap-1.5 justify-center">
+                <span>🚘</span>
+                <span className="text-xs font-semibold truncate max-w-full px-1">
+                  {property.carMake ? `${property.carMake} ${property.carModel || ""}` : (language === "en" ? "Car" : "Gaari")}
+                </span>
+              </div>
 
-          <div className="flex items-center gap-1.5 justify-center border-l border-r border-gray-100 dark:border-slate-850">
-            <Bath className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-semibold">
-              {property.bathrooms > 0 
-                ? (language === "en" ? `${property.bathrooms} Baths` : `${property.bathrooms} Musqul`) 
-                : "N/A"}
-            </span>
-          </div>
+              <div className="flex items-center gap-1.5 justify-center border-l border-r border-gray-100 dark:border-slate-850">
+                <span>⚙️</span>
+                <span className="text-xs font-semibold truncate px-1">
+                  {property.carTransmission || "Auto"}
+                </span>
+              </div>
 
-          <div className="flex items-center gap-1.5 justify-center">
-            <Maximize2 className="h-4 w-4 text-slate-400" />
-            <span className="text-xs font-semibold">{property.areaSize} m²</span>
-          </div>
+              <div className="flex items-center gap-1.5 justify-center">
+                <span>⛽</span>
+                <span className="text-xs font-semibold truncate px-1">
+                  {property.carFuelType || "Gas"}
+                </span>
+              </div>
+            </>
+          ) : property.category === PropertyCategory.LandSale ? (
+            <>
+              <div className="flex items-center gap-1 justify-center">
+                <span>📐</span>
+                <span className="font-bold truncate max-w-full px-1">
+                  {property.dimensions || "Plot Land"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 justify-center border-l border-r border-gray-100 dark:border-slate-850">
+                <span>📜</span>
+                <span className="font-bold text-[10px]">
+                  {property.hasTitleDeed ? (language === "en" ? "Deed Available" : "Wasiqo Diyaar") : (language === "en" ? "Unverified" : "La Hubiyo")}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 justify-center">
+                <Maximize2 className="h-3.5 w-3.5 text-slate-400" />
+                <span className="font-bold">{property.areaSize} m²</span>
+              </div>
+            </>
+          ) : property.category === PropertyCategory.Commercial ? (
+            <>
+              <div className="flex items-center gap-1 justify-center">
+                <span>🏢</span>
+                <span className="font-bold">
+                  {property.numShops ? `${property.numShops} Shops` : "Shops"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 justify-center border-l border-r border-gray-100 dark:border-slate-850">
+                <span>🚗</span>
+                <span className="font-bold">
+                  {property.hasParking ? (language === "en" ? "Parking" : "Baarkin") : (language === "en" ? "No Park" : "Ma laha")}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 justify-center">
+                <Maximize2 className="h-3.5 w-3.5 text-slate-400" />
+                <span className="font-bold">{property.areaSize} m²</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 justify-center">
+                <Bed className="h-4 w-4 text-slate-400" />
+                <span className="text-xs font-semibold">
+                  {property.bedrooms > 0 
+                    ? (language === "en" ? `${property.bedrooms} Beds` : `${property.bedrooms} Qolal`) 
+                    : "N/A"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 justify-center border-l border-r border-gray-100 dark:border-slate-850">
+                <Bath className="h-4 w-4 text-slate-400" />
+                <span className="text-xs font-semibold">
+                  {property.bathrooms > 0 
+                    ? (language === "en" ? `${property.bathrooms} Baths` : `${property.bathrooms} Musqul`) 
+                    : "N/A"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 justify-center">
+                <Maximize2 className="h-4 w-4 text-slate-400" />
+                <span className="text-xs font-semibold">{property.areaSize} m²</span>
+              </div>
+            </>
+          )}
 
         </div>
 

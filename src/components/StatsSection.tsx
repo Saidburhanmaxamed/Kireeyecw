@@ -66,13 +66,13 @@ export default function StatsSection({ properties, registeredUsersCount, languag
         {/* Title Content */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4">
           <div>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
+            <span className="text-[12px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest font-mono bg-emerald-500/10 dark:bg-emerald-400/10 px-3.5 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">
               {language === "en" ? "Live Portal Activity" : "Xogta Rasmiga ah ee Suuqa"}
             </span>
-            <h2 className="font-display font-bold text-3xl sm:text-4xl text-slate-900 dark:text-white mt-1.5 tracking-tight">
-              {dict.statsTitle}
+            <h2 className="font-display font-black text-4xl sm:text-5xl lg:text-6xl text-slate-950 dark:text-white mt-4 tracking-tighter">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-950 via-slate-800 to-emerald-600 dark:from-white dark:via-slate-200 dark:to-emerald-400">{dict.statsTitle}</span>
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xl">
+            <p className="text-sm sm:text-base text-slate-500 dark:text-slate-450 mt-3 max-w-xl font-medium leading-relaxed">
               {dict.statsSub}
             </p>
           </div>

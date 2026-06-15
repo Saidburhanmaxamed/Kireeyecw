@@ -25,7 +25,6 @@ import PropertyDetailModal from "./components/PropertyDetailModal";
 import AuthModal from "./components/AuthModal";
 import UserDashboard from "./components/UserDashboard";
 import AdminDashboard from "./components/AdminDashboard";
-import FAQ from "./components/FAQ";
 import ContactPage from "./components/ContactPage";
 import Footer from "./components/Footer";
 import { Info, Bell, CheckCircle2, Heart, MessageSquare, Sparkles } from "lucide-react";
@@ -94,6 +93,11 @@ export default function App() {
   // Floating Toast Alert notification indicator
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "info" | "heart"; text: string } | null>(null);
 
+  // Scroll to top when activeTab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [activeTab]);
+
   // Load and seed initial states from localStorage
   useEffect(() => {
     // 0. Language
@@ -106,18 +110,9 @@ export default function App() {
     }
 
     // 1. Theme
-    const savedTheme = localStorage.getItem("sre_theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      if (savedTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } else {
-      setTheme("light");
-      document.documentElement.classList.remove("dark");
-    }
+    setTheme("light");
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("sre_theme", "light");
 
     // 2. Properties
     const savedProps = localStorage.getItem("sre_properties");
@@ -408,11 +403,15 @@ export default function App() {
   // Execute advanced hero searches
   const handleSearchFilters = (filters: SearchFilters) => {
     setSearchFilters(filters);
-    setActiveTab("properties");
-    const element = document.getElementById("properties");
-    if (element) {
-      setTimeout(() => element.scrollIntoView({ behavior: "smooth" }), 100);
+    if (activeTab !== "home" && activeTab !== "properties") {
+      setActiveTab("home");
     }
+    setTimeout(() => {
+      const element = document.getElementById("properties");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 150);
     triggerToast("Applying advanced catalog search filters", "info");
   };
 
@@ -603,6 +602,13 @@ export default function App() {
       if (searchFilters.bathrooms) {
         result = result.filter(p => p.bathrooms >= parseInt(searchFilters.bathrooms));
       }
+      if (searchFilters.hasTitleDeed) {
+        if (searchFilters.hasTitleDeed === "yes") {
+          result = result.filter(p => p.hasTitleDeed === true);
+        } else if (searchFilters.hasTitleDeed === "no") {
+          result = result.filter(p => !p.hasTitleDeed);
+        }
+      }
     }
 
     // Filter strictly by the active tab if they clicked "Favorites"
@@ -632,7 +638,7 @@ export default function App() {
   };
 
   return (
-    <div id="main-application-frame" className="min-h-screen flex flex-col justify-between bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-all duration-300">
+    <div id="main-application-frame" className="min-h-screen flex flex-col justify-between bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-all duration-300">
       
       {/* 1. STICKY TOP HEADER */}
       <Header
@@ -719,18 +725,38 @@ export default function App() {
           <div className="space-y-0 animate-fade-in">
             
             {/* HERO FILTER BANNER */}
-            <div id="home">
-              <Hero 
-                onSearch={handleSearchFilters} 
-                onResetSearch={handleResetFilters} 
-                language={language} 
-                onShowNewEntries={handleShowNewEntries}
-                newEntriesCount={newEntriesCount}
-              />
-            </div>
+            {activeTab === "home" && (
+              <div id="home">
+                <Hero 
+                  onSearch={handleSearchFilters} 
+                  onResetSearch={handleResetFilters} 
+                  language={language} 
+                  onShowNewEntries={handleShowNewEntries}
+                  newEntriesCount={newEntriesCount}
+                />
+                
+                {/* Embedded Property Catalog directly on the Home view */}
+                <div id="properties" className="scroll-mt-20">
+                  <PropertyGrid
+                    properties={visibleProperties}
+                    favorites={favorites}
+                    onToggleFavorite={handleToggleFavorite}
+                    onViewDetails={setSelectedPropertyId}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    onClearFilters={handleResetFilters}
+                    language={language}
+                    regionFilter={searchFilters?.region || ""}
+                  />
+                </div>
+                
+                {/* SECURE CUSTOM CONTACT SUBMISSION SECTION ENCLOSED AT HOME */}
+                <ContactPage language={language} />
+              </div>
+            )}
 
             {/* PERSISTENT NEW ENTRIES NOTIFICATION FILTER BANNER */}
-            {showNewEntriesOnly && (
+            {activeTab === "properties" && showNewEntriesOnly && (
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-3xl bg-emerald-500/10 border-2 border-emerald-500/20 text-slate-800 dark:text-emerald-250 shadow-md">
                   <div className="flex items-center gap-3">
@@ -759,26 +785,28 @@ export default function App() {
             )}
 
             {/* PROPERTIES SECTION GOURMET CATALOG GRID */}
-            <div id="properties">
-              <PropertyGrid
-                properties={visibleProperties}
-                favorites={favorites}
-                onToggleFavorite={handleToggleFavorite}
-                onViewDetails={setSelectedPropertyId}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                onClearFilters={handleResetFilters}
-                language={language}
-              />
-            </div>
-
-            {/* KIREEYE FAQ ACCORDION SUMMARY */}
-            <FAQ language={language} />
+            {activeTab === "properties" && (
+              <div id="properties">
+                <PropertyGrid
+                  properties={visibleProperties}
+                  favorites={favorites}
+                  onToggleFavorite={handleToggleFavorite}
+                  onViewDetails={setSelectedPropertyId}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  onClearFilters={handleResetFilters}
+                  language={language}
+                  regionFilter={searchFilters?.region || ""}
+                />
+              </div>
+            )}
 
             {/* SECURE CUSTOM CONTACT SUBMISSION SECTION */}
-            <div id="contact">
-              <ContactPage language={language} />
-            </div>
+            {activeTab === "contact" && (
+              <div id="contact">
+                <ContactPage language={language} />
+              </div>
+            )}
 
           </div>
         )}
