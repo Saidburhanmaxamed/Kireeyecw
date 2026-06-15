@@ -124,7 +124,7 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
 
         {/* Live Notification Pillow Button */}
         {onShowNewEntries && (
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-6">
+          <div className="flex justify-center mb-6">
             <button
                id="new-entries-notification-pill"
                onClick={onShowNewEntries}
@@ -142,19 +142,6 @@ export default function Hero({ onSearch, onResetSearch, language = "en", onShowN
                   ? `View ${newEntriesCount || 4} recent entries in Abudwak →`
                   : `Eeg ${newEntriesCount || 4} guri oo dhawaan ku soo kordhay →`}
               </span>
-            </button>
-
-            <button
-               id="hero-contact-scroll-btn"
-               onClick={() => {
-                 const el = document.getElementById("contact");
-                 if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-               }}
-               className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 hover:border-emerald-400 text-white text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer shadow-md"
-               title={language === "en" ? "Contact Us" : "Nala Soo Xiriir"}
-            >
-              <span>📞</span>
-              <span>{language === "en" ? "Contact Us / Support" : "Nala Soo Xiriir"}</span>
             </button>
           </div>
         )}
