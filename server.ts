@@ -1,21 +1,30 @@
 import express from "express";
 import path from "path";
-import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { Property, User, Inquiry, AppNotification, Testimonial } from "./src/types";
 
-// Seed data from properties list
+// Firebase Admin SDK Imports
+import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
+import firebaseConfig from "./firebase-applet-config.json";
+
+// Seed data
 import { SAMPLE_PROPERTIES } from "./src/data";
+
+// Initialize Firebase Admin with credentials inside container environment
+const firebaseAdminApp = admin.initializeApp({
+  projectId: firebaseConfig.projectId
+});
+const db = getFirestore(firebaseAdminApp, firebaseConfig.firestoreDatabaseId);
 
 const app = express();
 const PORT = 3000;
-const DATA_FILE = path.join(process.cwd(), "data-store.json");
 
 // Increase payload limits for Base64 image uploads by agencies
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Default Seed Users (matching those in App.tsx)
+// Default Seed Users
 const SEED_USERS: User[] = [
   {
     id: "admin-ibnu",
@@ -48,188 +57,213 @@ const SEED_USERS: User[] = [
   }
 ];
 
-interface DataStoreSchema {
-  properties: Property[];
-  users: User[];
-  inquiries: Inquiry[];
-  notifications: AppNotification[];
-  testimonials: Testimonial[];
+// Helper to query firestore collection documents as array
+async function fetchCollection<T>(collectionName: string): Promise<T[]> {
+  try {
+    const snapshot = await db.collection(collectionName).get();
+    const items: T[] = [];
+    snapshot.forEach((d) => {
+      items.push(d.data() as T);
+    });
+    return items;
+  } catch (error) {
+    console.error(`Error fetching collection ${collectionName} from Firestore:`, error);
+    return [];
+  }
 }
 
-// Ensure database file exists
-function readStore(): DataStoreSchema {
+// Lazy Seeding of Cloud Database
+let seeded = false;
+async function ensureSeeded() {
+  if (seeded) return;
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      const initialStore: DataStoreSchema = {
-        properties: SAMPLE_PROPERTIES,
-        users: SEED_USERS,
-        inquiries: [],
-        notifications: [],
-        testimonials: []
-      };
-      fs.writeFileSync(DATA_FILE, JSON.stringify(initialStore, null, 2), "utf8");
-      return initialStore;
+    // 1. Seed Users
+    const usersSnap = await db.collection("users").get();
+    if (usersSnap.empty) {
+      console.log("[Firebase Seed] Users collection is empty. Populating seed brokers...");
+      for (const u of SEED_USERS) {
+        await db.collection("users").doc(u.id).set(u);
+      }
     }
-    const raw = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(raw);
+
+    // 2. Seed Properties
+    const propsSnap = await db.collection("properties").get();
+    if (propsSnap.empty) {
+      console.log("[Firebase Seed] Properties collection is empty. Populating sample active listings...");
+      for (const p of SAMPLE_PROPERTIES) {
+        await db.collection("properties").doc(p.id).set(p);
+      }
+    }
+    seeded = true;
+    console.log("[Firebase Seed] Seed verification complete. Live cloud storage ready.");
   } catch (err) {
-    console.error("Error reading data store JSON:", err);
-    return {
-      properties: SAMPLE_PROPERTIES,
-      users: SEED_USERS,
-      inquiries: [],
-      notifications: [],
-      testimonials: []
-    };
+    console.error("[Firebase Seed] Seed checking warning (might be offline/permissions status):", err);
   }
 }
 
-function writeStore(data: DataStoreSchema) {
+// Verify database seed integrity on start
+ensureSeeded().catch(e => console.error("Database seed check failed:", e));
+
+// GET all static/dynamic app state (bootstrap JSON)
+app.get("/api/data-bootstrap", async (req, res) => {
+  await ensureSeeded();
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+    const [properties, users, inquiries, notifications, testimonials] = await Promise.all([
+      fetchCollection<Property>("properties"),
+      fetchCollection<User>("users"),
+      fetchCollection<Inquiry>("inquiries"),
+      fetchCollection<AppNotification>("notifications"),
+      fetchCollection<Testimonial>("testimonials")
+    ]);
+    res.json({ properties, users, inquiries, notifications, testimonials });
   } catch (err) {
-    console.error("Error writing to data store JSON:", err);
+    console.error("Error bootstrapping app data from Firestore:", err);
+    res.status(500).json({ error: "Failed to read database store" });
   }
-}
-
-// GET all static/dynamic app state
-app.get("/api/data-bootstrap", (req, res) => {
-  const store = readStore();
-  res.json(store);
 });
 
 // PROPERTIES ENDPOINTS
-app.get("/api/properties", (req, res) => {
-  const store = readStore();
-  res.json(store.properties);
+app.get("/api/properties", async (req, res) => {
+  const list = await fetchCollection<Property>("properties");
+  res.json(list);
 });
 
-app.post("/api/properties", (req, res) => {
-  const store = readStore();
+app.post("/api/properties", async (req, res) => {
   const newProp = req.body as Property;
-  
-  // Clean duplicates up
-  store.properties = [newProp, ...store.properties.filter(p => p.id !== newProp.id)];
-  writeStore(store);
-  res.status(201).json(newProp);
+  try {
+    await db.collection("properties").doc(newProp.id).set(newProp);
+    res.status(201).json(newProp);
+  } catch (err) {
+    console.error(`Error saving property ${newProp.id} to Firestore:`, err);
+    res.status(500).json({ error: "Failed to save property listing" });
+  }
 });
 
-app.put("/api/properties/:id", (req, res) => {
-  const store = readStore();
+app.put("/api/properties/:id", async (req, res) => {
   const { id } = req.params;
   const updatedFields = req.body;
-  
-  store.properties = store.properties.map(p => {
-    if (p.id === id) {
-      return { ...p, ...updatedFields };
-    }
-    return p;
-  });
-  writeStore(store);
-  res.json({ success: true, id });
+  try {
+    await db.collection("properties").doc(id).set(updatedFields, { merge: true });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error(`Error updating property ${id} in Firestore:`, err);
+    res.status(500).json({ error: "Failed to update property" });
+  }
 });
 
-app.delete("/api/properties/:id", (req, res) => {
-  const store = readStore();
+app.delete("/api/properties/:id", async (req, res) => {
   const { id } = req.params;
-  
-  store.properties = store.properties.filter(p => p.id !== id);
-  writeStore(store);
-  res.json({ success: true, id });
+  try {
+    await db.collection("properties").doc(id).delete();
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error(`Error deleting property ${id} from Firestore:`, err);
+    res.status(500).json({ error: "Failed to delete property" });
+  }
 });
 
 // USERS ENDPOINTS
-app.get("/api/users", (req, res) => {
-  const store = readStore();
-  res.json(store.users);
+app.get("/api/users", async (req, res) => {
+  const list = await fetchCollection<User>("users");
+  res.json(list);
 });
 
-app.post("/api/users", (req, res) => {
-  const store = readStore();
+app.post("/api/users", async (req, res) => {
   const newUser = req.body as User;
-  
-  store.users = [...store.users.filter(u => u.email.toLowerCase() !== newUser.email.toLowerCase() && u.id !== newUser.id), newUser];
-  writeStore(store);
-  res.status(201).json(newUser);
+  try {
+    await db.collection("users").doc(newUser.id).set(newUser);
+    res.status(201).json(newUser);
+  } catch (err) {
+    console.error(`Error writing user registry ${newUser.id} to Firestore:`, err);
+    res.status(500).json({ error: "Failed to create user registry" });
+  }
 });
 
-app.put("/api/users/:id", (req, res) => {
-  const store = readStore();
+app.put("/api/users/:id", async (req, res) => {
   const { id } = req.params;
-  const updatedUserFields = req.body;
-  
-  store.users = store.users.map(u => {
-    if (u.id === id) {
-      return { ...u, ...updatedUserFields };
-    }
-    return u;
-  });
-  writeStore(store);
-  res.json({ success: true, id });
+  const updatedFields = req.body;
+  try {
+    await db.collection("users").doc(id).set(updatedFields, { merge: true });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error(`Error updating user profile ${id} in Firestore:`, err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
 });
 
 // INQUIRIES ENDPOINTS
-app.get("/api/inquiries", (req, res) => {
-  const store = readStore();
-  res.json(store.inquiries);
+app.get("/api/inquiries", async (req, res) => {
+  const list = await fetchCollection<Inquiry>("inquiries");
+  res.json(list);
 });
 
-app.post("/api/inquiries", (req, res) => {
-  const store = readStore();
+app.post("/api/inquiries", async (req, res) => {
   const newInq = req.body as Inquiry;
-  
-  store.inquiries = [newInq, ...store.inquiries];
-  writeStore(store);
-  res.status(201).json(newInq);
+  try {
+    await db.collection("inquiries").doc(newInq.id).set(newInq);
+    res.status(201).json(newInq);
+  } catch (err) {
+    console.error(`Error writing inquiry ${newInq.id} to Firestore:`, err);
+    res.status(500).json({ error: "Failed to file property inquiry ticket" });
+  }
 });
 
-app.delete("/api/inquiries/:id", (req, res) => {
-  const store = readStore();
+app.delete("/api/inquiries/:id", async (req, res) => {
   const { id } = req.params;
-  
-  store.inquiries = store.inquiries.filter(i => i.id !== id);
-  writeStore(store);
-  res.json({ success: true, id });
+  try {
+    await db.collection("inquiries").doc(id).delete();
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error(`Error deleting inquiry ${id} from Firestore:`, err);
+    res.status(500).json({ error: "Failed to delete inquiry" });
+  }
 });
 
 // TESTIMONIALS ENDPOINTS
-app.get("/api/testimonials", (req, res) => {
-  const store = readStore();
-  res.json(store.testimonials);
+app.get("/api/testimonials", async (req, res) => {
+  const list = await fetchCollection<Testimonial>("testimonials");
+  res.json(list);
 });
 
-app.post("/api/testimonials", (req, res) => {
-  const store = readStore();
+app.post("/api/testimonials", async (req, res) => {
   const newTestimonial = req.body as Testimonial;
-  
-  store.testimonials = [newTestimonial, ...store.testimonials];
-  writeStore(store);
-  res.status(201).json(newTestimonial);
+  try {
+    await db.collection("testimonials").doc(newTestimonial.id).set(newTestimonial);
+    res.status(201).json(newTestimonial);
+  } catch (err) {
+    console.error(`Error adding testimonial ${newTestimonial.id} to Firestore:`, err);
+    res.status(500).json({ error: "Failed to publish feedback" });
+  }
 });
 
 // NOTIFICATIONS ENDPOINTS
-app.get("/api/notifications", (req, res) => {
-  const store = readStore();
-  res.json(store.notifications);
+app.get("/api/notifications", async (req, res) => {
+  const list = await fetchCollection<AppNotification>("notifications");
+  res.json(list);
 });
 
-app.post("/api/notifications", (req, res) => {
-  const store = readStore();
+app.post("/api/notifications", async (req, res) => {
   const newNotif = req.body as AppNotification;
-  
-  store.notifications = [newNotif, ...store.notifications];
-  writeStore(store);
-  res.status(201).json(newNotif);
+  try {
+    await db.collection("notifications").doc(newNotif.id).set(newNotif);
+    res.status(201).json(newNotif);
+  } catch (err) {
+    console.error(`Error saving notification ${newNotif.id} to Firestore:`, err);
+    res.status(500).json({ error: "Failed to register notification" });
+  }
 });
 
-app.put("/api/notifications/:id", (req, res) => {
-  const store = readStore();
+// NOTIFICATIONS PUT ENDPOINT
+app.put("/api/notifications/:id", async (req, res) => {
   const { id } = req.params;
   const fields = req.body;
-  
-  store.notifications = store.notifications.map(n => n.id === id ? { ...n, ...fields } : n);
-  writeStore(store);
-  res.json({ success: true });
+  try {
+    await db.collection("notifications").doc(id).set(fields, { merge: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`Error updating notification ${id} in Firestore:`, err);
+    res.status(500).json({ error: "Failed to modify notification key" });
+  }
 });
 
 // Dev server / production server setups
@@ -249,7 +283,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[REAL RECENT LISTINGS ENHANCED] Full-Stack server running on port ${PORT}`);
+    console.log(`[REAL RECENT LISTINGS ENHANCED] Full-Stack server running with real Firestore database on port ${PORT}`);
   });
 }
 

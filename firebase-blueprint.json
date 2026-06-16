@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A registered user inside the system (admin, agent, buyer)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "agent", "buyer"] },
+        "phone": { "type": "string" },
+        "password": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role", "phone"]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "A real estate property listing entered by an agency/broker",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "type": { "type": "string" },
+        "price": { "type": "number" },
+        "location": { "type": "string" },
+        "region": { "type": "string" },
+        "status": { "type": "string", "enum": ["Rent", "Sale"] },
+        "bedrooms": { "type": "number" },
+        "bathrooms": { "type": "number" },
+        "areaSize": { "type": "number" },
+        "images": { "type": "array" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerPhone": { "type": "string" },
+        "ownerWhatsapp": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "category", "price", "location", "region", "status", "ownerId", "approved"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "An inquiry ticket created by a prospect looking to inspect a property",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "propertyId", "propertyTitle", "name", "email", "phone", "message", "date"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "A push notification or operational alert for system updates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["alert", "inquiry", "success", "general"] },
+        "createdAt": { "type": "string" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["id", "title", "message", "type", "createdAt", "read"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "User reviews detailing agency track records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "comment": { "type": "string" },
+        "avatar": { "type": "string" },
+        "rating": { "type": "number" }
+      },
+      "required": ["id", "name", "role", "comment", "avatar", "rating"]
+    }
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Real estate listings"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Agency profiles and registrations"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Inquiry tickets placed on listings"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "AppNotification",
+      "description": "Operation notifications"
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": "Testimonial",
+      "description": "User feedback testimonials"
+    }
+  }
+}
