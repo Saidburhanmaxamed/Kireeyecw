@@ -98,7 +98,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [activeTab]);
 
-  // Load and seed initial states from localStorage
+  // Load and seed initial states from Express server (centralized persistence)
   useEffect(() => {
     // 0. Language
     const savedLang = localStorage.getItem("sre_language") as Language | null;
@@ -114,14 +114,79 @@ export default function App() {
     document.documentElement.classList.remove("dark");
     localStorage.setItem("sre_theme", "light");
 
-    // 2. Properties
-    const savedProps = localStorage.getItem("sre_properties");
-    if (savedProps) {
-      setProperties(JSON.parse(savedProps));
-    } else {
-      localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
-      setProperties(SAMPLE_PROPERTIES);
-    }
+    // 2. Fetch server bootstrap data
+    fetch("/api/data-bootstrap")
+      .then((res) => res.json())
+      .then((data) => {
+        // Properties
+        if (data.properties) {
+          setProperties(data.properties);
+          localStorage.setItem("sre_properties", JSON.stringify(data.properties));
+        }
+        
+        // Registered Users
+        if (data.users) {
+          setRegisteredUsers(data.users);
+          localStorage.setItem("sre_registered_users", JSON.stringify(data.users));
+        }
+
+        // Inquiries
+        if (data.inquiries) {
+          setInquiries(data.inquiries);
+          localStorage.setItem("sre_inquiries", JSON.stringify(data.inquiries));
+        }
+
+        // Notifications
+        if (data.notifications) {
+          setNotifications(data.notifications);
+          localStorage.setItem("sre_notifications", JSON.stringify(data.notifications));
+        }
+
+        // Testimonials
+        if (data.testimonials) {
+          setTestimonials(data.testimonials);
+          localStorage.setItem("sre_testimonials", JSON.stringify(data.testimonials));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch bootstrap data from back-end server. Falling back to localStorage.", err);
+        // Fallback to localStorage if API is unreachable
+        const savedProps = localStorage.getItem("sre_properties");
+        if (savedProps) {
+          setProperties(JSON.parse(savedProps));
+        } else {
+          localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
+          setProperties(SAMPLE_PROPERTIES);
+        }
+
+        const savedUser = localStorage.getItem("sre_current_user");
+        if (savedUser) {
+          setCurrentUser(JSON.parse(savedUser));
+        }
+
+        const savedUsers = localStorage.getItem("sre_registered_users");
+        if (savedUsers) {
+          setRegisteredUsers(JSON.parse(savedUsers));
+        } else {
+          localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
+          setRegisteredUsers(INITIAL_USERS);
+        }
+
+        const savedInqs = localStorage.getItem("sre_inquiries");
+        if (savedInqs) {
+          setInquiries(JSON.parse(savedInqs));
+        }
+
+        const savedNotifs = localStorage.getItem("sre_notifications");
+        if (savedNotifs) {
+          setNotifications(JSON.parse(savedNotifs));
+        }
+
+        const savedTestimonials = localStorage.getItem("sre_testimonials");
+        if (savedTestimonials) {
+          setTestimonials(JSON.parse(savedTestimonials));
+        }
+      });
 
     // 3. User Credentials login persistence
     const savedUser = localStorage.getItem("sre_current_user");
@@ -129,133 +194,13 @@ export default function App() {
       setCurrentUser(JSON.parse(savedUser));
     }
 
-    // 4. Registered Users
-    const savedUsers = localStorage.getItem("sre_registered_users");
-    if (savedUsers) {
-      try {
-        const parsed: User[] = JSON.parse(savedUsers);
-        
-        // Clean up any duplicates based on ID or Email from localStorage
-        const seenIds = new Set<string>();
-        const seenEmails = new Set<string>();
-        let cleanedUsers: User[] = [];
-        
-        parsed.forEach((u) => {
-          const emailKey = u.email.toLowerCase().trim();
-          if (u.id && !seenIds.has(u.id) && !seenEmails.has(emailKey)) {
-            seenIds.add(u.id);
-            seenEmails.add(emailKey);
-            cleanedUsers.push(u);
-          }
-        });
-
-        let updatedUsers = [...cleanedUsers];
-        let changed = cleanedUsers.length !== parsed.length;
-        
-        INITIAL_USERS.forEach((seedUser) => {
-          const seedEmail = seedUser.email.toLowerCase().trim();
-          // Find any existing entry that has the same email OR same ID
-          const foundIndex = updatedUsers.findIndex(
-            (u) => u.email.toLowerCase().trim() === seedEmail || u.id === seedUser.id
-          );
-          
-          if (foundIndex === -1) {
-            updatedUsers.push(seedUser);
-            changed = true;
-          } else {
-            // Synchronize the existing entry with the seed details
-            const current = updatedUsers[foundIndex];
-            if (
-              current.id !== seedUser.id ||
-              current.password !== seedUser.password ||
-              current.role !== seedUser.role ||
-              current.username !== seedUser.username ||
-              current.name !== seedUser.name
-            ) {
-              updatedUsers[foundIndex] = {
-                ...current,
-                id: seedUser.id,
-                name: seedUser.name,
-                password: seedUser.password,
-                role: seedUser.role,
-                username: seedUser.username,
-                phone: seedUser.phone || current.phone
-              };
-              changed = true;
-            }
-          }
-        });
-
-        if (changed) {
-          localStorage.setItem("sre_registered_users", JSON.stringify(updatedUsers));
-        }
-        setRegisteredUsers(updatedUsers);
-      } catch (err) {
-        localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
-        setRegisteredUsers(INITIAL_USERS);
-      }
-    } else {
-      localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
-      setRegisteredUsers(INITIAL_USERS);
-    }
-
-    // 5. Favorites
+    // 4. Favorites Setup
     const savedFavs = localStorage.getItem("sre_favorites");
     if (savedFavs) {
       setFavorites(JSON.parse(savedFavs));
     } else {
       localStorage.setItem("sre_favorites", JSON.stringify([]));
     }
-
-    // 6. Inquiries
-    const savedInqs = localStorage.getItem("sre_inquiries");
-    if (savedInqs) {
-      setInquiries(JSON.parse(savedInqs));
-    } else {
-      const defaultInquiryList: Inquiry[] = [
-        {
-          id: "inq-1",
-          propertyId: "prop-2",
-          propertyTitle: "Spacious Family Compound in Amaana",
-          name: "Nimco Jama (US returnee)",
-          email: "nimco.jama@gmail.com",
-          phone: "+16125432109",
-          message: "Salaam Sarah, I am in Caabudwaaq next week and want to inspect the structural status of the family compound yard.",
-          date: new Date("2026-06-05T10:00:00Z").toISOString()
-        }
-      ];
-      localStorage.setItem("sre_inquiries", JSON.stringify(defaultInquiryList));
-      setInquiries(defaultInquiryList);
-    }
-
-    // 7. Notifications seed
-    const savedNotifs = localStorage.getItem("sre_notifications");
-    if (savedNotifs) {
-      setNotifications(JSON.parse(savedNotifs));
-    } else {
-      const initialNotifs: AppNotification[] = [
-        {
-          id: "notif-1",
-          title: "Welcome to Kireeye",
-          message: "Securely explore, list, and buy vetted properties. Need assistance? Contact custom hotlines on our Contact page.",
-          type: "general",
-          createdAt: new Date().toISOString(),
-          read: false
-        }
-      ];
-      localStorage.setItem("sre_notifications", JSON.stringify(initialNotifs));
-      setNotifications(initialNotifs);
-    }
-
-    // 8. Testimonials seed
-    const savedTestimonials = localStorage.getItem("sre_testimonials");
-    if (savedTestimonials) {
-      setTestimonials(JSON.parse(savedTestimonials));
-    } else {
-      localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
-      setTestimonials(SAMPLE_TESTIMONIALS);
-    }
-
   }, []);
 
   // Sync state functions with local storage
@@ -318,6 +263,13 @@ export default function App() {
     if (!registeredUsers.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
       const updatedUsers = [...registeredUsers, user];
       saveUsers(updatedUsers);
+
+      // Save user registry to back-end
+      fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user)
+      }).catch(err => console.error("Error saving registered user to cloud:", err));
     }
 
     // Add alert notification
@@ -343,6 +295,13 @@ export default function App() {
     localStorage.setItem("sre_current_user", JSON.stringify(updatedUser));
     const updatedUsers = registeredUsers.map(u => u.id === updatedUser.id ? updatedUser : u);
     saveUsers(updatedUsers);
+
+    // Save profile update to back-end
+    fetch(`/api/users/${updatedUser.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedUser)
+    }).catch(err => console.error("Error saving updated user user profile key:", err));
   };
 
   const handleAddTestimonial = (testimonial: Omit<Testimonial, "id">) => {
@@ -351,6 +310,13 @@ export default function App() {
       id: "testimonial-" + Date.now()
     };
     saveTestimonials([newTestimonial, ...testimonials]);
+
+    // Save testimonial to back-end
+    fetch("/api/testimonials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTestimonial)
+    }).catch(err => console.error("Error saving testimonial:", err));
   };
 
   const handleLogout = () => {
@@ -439,6 +405,13 @@ export default function App() {
 
     saveInquiries([newInquiry, ...inquiries]);
 
+    // Save inquiry to backend Express server
+    fetch("/api/inquiries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newInquiry)
+    }).catch(err => console.error("Error creating inquiry on backend:", err));
+
     // Send app notification alert to the matching owner/broker
     const matchedProp = properties.find(p => p.id === inqPayload.propertyId);
     const notificationId = "notif-" + Math.random().toString(36).substr(2, 9);
@@ -471,6 +444,13 @@ export default function App() {
 
     saveProperties([newProp, ...properties]);
 
+    // Save property listing to backend Express server
+    fetch("/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newProp)
+    }).catch(err => console.error("Error creating property spec on backend:", err));
+
     // Trigger Notification
     const updatedNotifs = [
       {
@@ -495,12 +475,25 @@ export default function App() {
       return p;
     });
     saveProperties(updated);
+
+    // Save modified property specifications to Express server
+    fetch(`/api/properties/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedFields)
+    }).catch(err => console.error("Error updating property on backend:", err));
+
     triggerToast("Listing specifications updated", "success");
   };
 
   const handleDeleteProperty = (id: string) => {
     const updated = properties.filter(p => p.id !== id);
     saveProperties(updated);
+
+    // Delete property on server
+    fetch(`/api/properties/${id}`, {
+      method: "DELETE"
+    }).catch(err => console.error("Error deleting property on backend:", err));
 
     // Sync saved favorites
     const updatedFavs = favorites.filter(favId => favId !== id);
@@ -530,18 +523,40 @@ export default function App() {
       setCurrentUser(updatedUser);
       localStorage.setItem("sre_current_user", JSON.stringify(updatedUser));
     }
+
+    // Save user update to server-side store
+    fetch(`/api/users/${updatedUser.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedUser)
+    }).catch(err => console.error("Error updating user on backend:", err));
+
     triggerToast("Broker registry entry updated", "success");
   };
 
   const handleCreateUser = (newUser: User) => {
     const updatedUsers = [...registeredUsers, newUser];
     saveUsers(updatedUsers);
+
+    // Add registered user to server-side store
+    fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newUser)
+    }).catch(err => console.error("Error registering user on backend:", err));
+
     triggerToast("Broker registered successfully", "success");
   };
 
   const handleDeleteInquiry = (id: string) => {
     const updated = inquiries.filter(i => i.id !== id);
     saveInquiries(updated);
+
+    // Cancel / Delete inquiry ticket on server
+    fetch(`/api/inquiries/${id}`, {
+      method: "DELETE"
+    }).catch(err => console.error("Error deleting inquiry on backend:", err));
+
     triggerToast("Contact inquiry removed from console", "info");
   };
 
@@ -553,6 +568,14 @@ export default function App() {
       return p;
     });
     saveProperties(updated);
+
+    // Set approved: true on the backend Express database
+    fetch(`/api/properties/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved: true })
+    }).catch(err => console.error("Error approving property listing:", err));
+
     triggerToast("Vetting approved. Property listed publicly.", "success");
   };
 

@@ -33,6 +33,8 @@ export default function AuthModal({
   const [adminKey, setAdminKey] = useState(""); // If they want to register as admin (needs passcode "somali123")
   const [showAdminField, setShowAdminField] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [emailActive, setEmailActive] = useState(false);
+  const [passwordActive, setPasswordActive] = useState(false);
 
   // Default fallback demo brokers so users can instantly logs in
   const handleQuickLogin = (roleType: "agent" | "admin" | "buyer") => {
@@ -395,8 +397,8 @@ export default function AuthModal({
                   type="button"
                   onClick={() => {
                     setLoginType("admin");
-                    setEmail("Ibnuburhan555@gmail.com");
-                    setPassword("Maalinle555");
+                    setEmail("");
+                    setPassword("");
                   }}
                   className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer border ${
                     loginType === "admin"
@@ -422,11 +424,13 @@ export default function AuthModal({
                   <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 )}
                 <input
-                  type={loginType === "admin" ? "email" : "text"}
-                  placeholder={loginType === "admin" ? "ibnuburhan555@gmail.com" : "e.g. abdirahman"}
+                  type={loginType === "admin" ? (emailActive ? "email" : "password") : "text"}
+                  placeholder={loginType === "admin" ? "Enter admin email" : "e.g. abdirahman"}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setEmailActive(true)}
+                  onBlur={() => setEmailActive(false)}
                   className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-100 dark:border-slate-800 text-sm outline-none focus:border-emerald-500 font-sans font-medium"
                 />
               </div>
@@ -446,12 +450,14 @@ export default function AuthModal({
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                 <input
-                  type="password"
+                  type={passwordActive ? "text" : "password"}
                   placeholder="••••••••"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-100 dark:border-slate-800 text-sm outline-none focus:border-emerald-500"
+                  onFocus={() => setPasswordActive(true)}
+                  onBlur={() => setPasswordActive(false)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-150 dark:border-slate-800 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
