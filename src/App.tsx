@@ -92,6 +92,7 @@ export default function App() {
 
   // Floating Toast Alert notification indicator
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "info" | "heart"; text: string } | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ supabaseConnected: boolean; supabaseUrl: string | null; hasServiceRoleKey: boolean; sqlSchema: string } | null>(null);
 
   // Scroll to top when activeTab changes
   useEffect(() => {
@@ -113,6 +114,12 @@ export default function App() {
     setTheme("light");
     document.documentElement.classList.remove("dark");
     localStorage.setItem("sre_theme", "light");
+
+    // Fetch DB Status
+    fetch("/api/db-status")
+      .then((res) => res.json())
+      .then((status) => setDbStatus(status))
+      .catch((err) => console.error("Error loading db-status:", err));
 
     // 2. Fetch server bootstrap data
     fetch("/api/data-bootstrap")
@@ -678,6 +685,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         language={language}
         onToggleLanguage={handleToggleLanguage}
+        dbStatus={dbStatus}
       />
 
       {/* 2. FLOATING ALERTS OR TOAST MESSAGE CENTER */}

@@ -16,7 +16,12 @@ import {
   LogOut, 
   LayoutDashboard, 
   ShieldAlert,
-  Check
+  Check,
+  Database,
+  Copy,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink
 } from "lucide-react";
 import { User as UserType, AppNotification } from "../types";
 import { translations, Language } from "../localization";
@@ -36,6 +41,14 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   language: Language;
   onToggleLanguage: () => void;
+  dbStatus?: { 
+    supabaseConnected: boolean; 
+    supabaseUrl: string | null; 
+    hasServiceRoleKey: boolean; 
+    sqlSchema: string;
+    tablesExist?: boolean;
+    connectionError?: string | null;
+  } | null;
 }
 
 export default function Header({
@@ -51,11 +64,14 @@ export default function Header({
   activeTab,
   setActiveTab,
   language,
-  onToggleLanguage
+  onToggleLanguage,
+  dbStatus
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [dbStatusModalOpen, setDbStatusModalOpen] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   const unreadNotifications = notifications.filter(n => !n.read);
   const dict = translations[language];
@@ -130,6 +146,33 @@ export default function Header({
           {/* Action Utilities (Favs, Theme, Notify, Profile) */}
           <div className="hidden lg:flex items-center gap-4">
             
+            {/* Supabase Connectivity Badge */}
+            <button
+              id="supabase-status-badge"
+              onClick={() => setDbStatusModalOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border shadow-md focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
+                dbStatus?.supabaseConnected
+                  ? dbStatus.tablesExist
+                    ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-emerald-950/20"
+                    : "bg-amber-950/80 text-amber-400 border-amber-500/40 shadow-amber-950/20 animate-pulse"
+                  : "bg-slate-900/60 text-slate-400 border-slate-700/30 shadow-slate-950/20"
+              }`}
+              title="Click to view Supabase database tables and live status"
+            >
+              <Database className={`h-4 w-4 ${
+                dbStatus?.supabaseConnected
+                  ? dbStatus.tablesExist ? "text-emerald-400" : "text-amber-400"
+                  : "text-slate-500"
+              }`} />
+              <span>
+                {dbStatus?.supabaseConnected
+                  ? dbStatus.tablesExist
+                    ? "Supabase Live"
+                    : "Setup Tables"
+                  : "Supabase Fallback"}
+              </span>
+            </button>
+
             {/* Premium Language Pill Toggle */}
             <div className="flex items-center gap-1 bg-emerald-950/60 px-1 py-1 rounded-xl border border-emerald-800/40">
               <button
@@ -415,6 +458,109 @@ export default function Header({
                 <span>{dict.brokerLogin}</span>
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Supabase Integration Assistant Modal */}
+      {dbStatusModalOpen && dbStatus && (
+        <div id="supabase-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-slate-100">
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-gray-150 dark:border-slate-800 shadow-2xl animate-scale-up">
+            <div className={`p-6 border-b flex items-start justify-between relative ${dbStatus.supabaseConnected ? "bg-emerald-500/10 border-emerald-500/10" : "bg-amber-500/10 border-amber-500/10"}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-2xl ${dbStatus.supabaseConnected ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}`}>
+                  <Database className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg md:text-xl text-slate-900 dark:text-white leading-tight">
+                    Supabase PostgreSQL Settings
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    State manager configuration for durable cloud data storage.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDbStatusModalOpen(false)}
+                className="p-1 px-2.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-xs"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-gray-150 dark:border-slate-850/60">
+                <h4 className="text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
+                  {dbStatus.supabaseConnected ? (
+                    dbStatus.tablesExist ? (
+                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wide text-xs">
+                        <CheckCircle2 className="h-4 w-4" /> Live Supabase Database Connected & Ready
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-amber-500 font-bold uppercase tracking-wide text-xs">
+                        <AlertTriangle className="h-4 w-4 animate-bounce" /> Connection Active (Tables Missing)
+                      </span>
+                    )
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-amber-500 font-bold uppercase tracking-wide text-xs">
+                      <AlertTriangle className="h-4 w-4" /> Database Unconfigured / Falling Back to local memory
+                    </span>
+                  )}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-2">
+                  {dbStatus.supabaseConnected
+                    ? dbStatus.tablesExist
+                      ? `Your app is syncing real-time queries directly into your Cloud Postgres instance. Cloud API target: ${dbStatus.supabaseUrl}`
+                      : `Successfully connected to your Supabase project URL (${dbStatus.supabaseUrl}), but your PostgreSQL database tables are not set up yet! Please copy and execute the SQL migration script below in your Supabase SQL Editor to activate full cloud persistence.`
+                    : "The app is currently running in a fully-functional, high-performance in-memory mode so you can preview changes immediately! Provide the following environment variables in the variables panel to connect your production Supabase database:"}
+                </p>
+
+                {!dbStatus.supabaseConnected && (
+                  <div className="mt-3 space-y-1.5 font-mono text-[11px] text-slate-600 dark:text-slate-350 bg-white dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800">
+                    <div><span className="text-blue-500 dark:text-blue-400 font-bold">SUPABASE_URL</span>=your-project-endpoint.supabase.co</div>
+                    <div><span className="text-blue-500 dark:text-blue-400 font-bold">SUPABASE_SERVICE_ROLE_KEY</span>=your-secret-bypass-service-key</div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 font-sans">
+                    PostgreSQL Bootstrapping SQL Schema
+                  </h4>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(dbStatus.sqlSchema);
+                      setSqlCopied(true);
+                      setTimeout(() => setSqlCopied(false), 2500);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-sm focus:outline-none cursor-pointer uppercase tracking-wider text-[10px]"
+                  >
+                    {sqlCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    <span>{sqlCopied ? "Copied!" : "Copy SQL"}</span>
+                  </button>
+                </div>
+
+                <div className="p-3 bg-slate-900 text-emerald-400 font-mono text-[10px] rounded-2xl overflow-x-auto max-h-56 leading-relaxed border border-slate-800 select-all scrollbar-thin">
+                  <pre>{dbStatus.sqlSchema}</pre>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 italic leading-relaxed">
+                  💡 Tip: Open your Supabase Workspace, click on the **SQL Editor**, paste the code block above, and click **Run**. This establishes your PostgreSQL tables instantly so your live database registry is perfectly aligned with the applet UI!
+                </p>
+              </div>
+
+              {dbStatus.supabaseConnected && (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex gap-3 text-emerald-800 dark:text-emerald-250">
+                  <LogoIcon className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="font-bold text-xs uppercase tracking-wide">Live Hydration Active</h5>
+                    <p className="text-[11px] mt-1 leading-relaxed text-slate-500 dark:text-slate-400">
+                      All new inquiries, property photo submissions, broker registries and testimonials will persist permanently in your live database across all sessions without losing any offline efforts.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
