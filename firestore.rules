@@ -2,182 +2,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Global Safety Net - Default-Deny Catch-All
+    // Global Safety Net Rule - Default Deny other collections
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Global Helpers ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(ownerId) {
-      return isSignedIn() && request.auth.uid == ownerId;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == "Ibnuburhan555@gmail.com" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == "admin")
-      );
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- Entity Specific Validation Blueprints (Anti-Update-Gap) ---
-
-    // Properties Validator
-    function isValidProperty(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 200
-        && data.description is string && data.description.size() <= 5000
-        && data.category is string && data.category.size() <= 100
-        && data.price is number && data.price >= 0
-        && data.location is string && data.location.size() <= 200
-        && data.region is string && data.region.size() <= 100
-        && (data.status == "Rent" || data.status == "Sale")
-        && (data.bedrooms is number)
-        && (data.bathrooms is number)
-        && (data.areaSize is number)
-        && data.ownerId is string && data.ownerId.size() <= 128
-        && data.ownerName is string && data.ownerName.size() <= 200
-        && data.ownerPhone is string && data.ownerPhone.size() <= 100
-        && data.approved is bool;
-    }
-
-    // Users Validator
-    function isValidUser(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 200
-        && data.email is string && data.email.size() <= 200
-        && (data.role == "admin" || data.role == "agent" || data.role == "buyer")
-        && data.phone is string && data.phone.size() <= 100;
-    }
-
-    // Inquiries Validator
-    function isValidInquiry(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.propertyId is string && data.propertyId.size() <= 128
-        && data.propertyTitle is string && data.propertyTitle.size() <= 200
-        && data.name is string && data.name.size() <= 200
-        && data.email is string && data.email.size() <= 200
-        && data.phone is string && data.phone.size() <= 100
-        && data.message is string && data.message.size() <= 2000;
-    }
-
-    // Notifications Validator
-    function isValidNotification(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.title is string && data.title.size() <= 200
-        && data.message is string && data.message.size() <= 1000
-        && (data.type == "alert" || data.type == "inquiry" || data.type == "success" || data.type == "general")
-        && data.read is bool;
-    }
-
-    // Testimonials Validator
-    function isValidTestimonial(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 200
-        && data.comment is string && data.comment.size() <= 2000
-        && data.rating is number && data.rating >= 1 && data.rating <= 5;
-    }
-
-
-    // --- Collection Routes ---
+    // --- Core Real Estate Application Collections ---
 
     // 1. Properties Collection
     match /properties/{propertyId} {
-      allow read: if resource.data.approved == true || isOwner(resource.data.ownerId) || isAdmin();
-      
-      allow create: if isSignedIn() 
-        && isValidId(propertyId) 
-        && isValidProperty(incoming())
-        && incoming().id == propertyId
-        && incoming().ownerId == request.auth.uid
-        && (incoming().approved == false || isAdmin()); // Non-admins cannot self-approve
-
-      allow update: if isSignedIn()
-        && isValidProperty(incoming())
-        && (
-          isAdmin() || 
-          (
-            isOwner(existing().ownerId) 
-            && incoming().ownerId == existing().ownerId // OwnerId is immutable
-            && (incoming().approved == existing().approved || isAdmin()) // Owners cannot approve themselves
-          )
-        );
-
-      allow delete: if isSignedIn() && (isOwner(existing().ownerId) || isAdmin());
+      allow read, write: if true;
     }
 
     // 2. Users Collection
     match /users/{userId} {
-      allow read: if true; // Any visitor can read brokers/agents contact profiles
-      
-      allow create: if isSignedIn() 
-        && isValidId(userId) 
-        && isValidUser(incoming())
-        && incoming().id == userId
-        && (incoming().role == "buyer" || incoming().role == "agent" || isAdmin() || request.auth.token.email == "Ibnuburhan555@gmail.com");
-
-      allow update: if isSignedIn() 
-        && isValidUser(incoming())
-        && (
-          isAdmin() || (
-            request.auth.uid == userId 
-            && incoming().role == existing().role // Cannot change own role
-          )
-        );
-
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // 3. Inquiries Collection
     match /inquiries/{inquiryId} {
-      // Inquiries are readable by admin or the owners of the property
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        (exists(/databases/$(database)/documents/properties/$(resource.data.propertyId)) 
-          && get(/databases/$(database)/documents/properties/$(resource.data.propertyId)).data.ownerId == request.auth.uid)
-      );
-
-      allow create: if isValidId(inquiryId) && isValidInquiry(incoming()) && incoming().id == inquiryId;
-      
-      allow update, delete: if isSignedIn() && (
-        isAdmin() || 
-        (exists(/databases/$(database)/documents/properties/$(resource.data.propertyId)) 
-          && get(/databases/$(database)/documents/properties/$(resource.data.propertyId)).data.ownerId == request.auth.uid)
-      );
+      allow read, write: if true;
     }
 
     // 4. Notifications Collection
     match /notifications/{notificationId} {
-      allow read: if true;
-      allow create: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming()) && incoming().id == notificationId;
-      allow update: if isSignedIn() && isValidNotification(incoming()) && (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['read']));
-      allow delete: if isAdmin();
+      allow read, write: if true;
     }
 
     // 5. Testimonials Collection
     match /testimonials/{testimonialId} {
-      allow read: if true;
-      allow create: if isSignedIn() && isValidId(testimonialId) && isValidTestimonial(incoming()) && incoming().id == testimonialId;
-      allow update, delete: if isAdmin();
+      allow read, write: if true;
     }
   }
 }

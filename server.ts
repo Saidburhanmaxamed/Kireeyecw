@@ -4,17 +4,20 @@ import { createServer as createViteServer } from "vite";
 import { Property, User, Inquiry, AppNotification, Testimonial } from "./src/types";
 
 // Firebase Admin SDK Imports
-import admin from "firebase-admin";
+import { initializeApp, getApps, getApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import firebaseConfig from "./firebase-applet-config.json";
 
 // Seed data
 import { SAMPLE_PROPERTIES } from "./src/data";
 
-// Initialize Firebase Admin with credentials inside container environment
-const firebaseAdminApp = admin.initializeApp({
-  projectId: firebaseConfig.projectId
-});
+// Initialize Firebase Admin using credentials or App Default Credentials
+const firebaseAdminApp = getApps().length === 0
+  ? initializeApp({
+      projectId: firebaseConfig.projectId
+    })
+  : getApp();
+
 const db = getFirestore(firebaseAdminApp, firebaseConfig.firestoreDatabaseId);
 
 const app = express();
@@ -283,7 +286,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[REAL RECENT LISTINGS ENHANCED] Full-Stack server running with real Firestore database on port ${PORT}`);
+    console.log(`[REAL RECENT LISTINGS] Full-Stack server running with real Firestore database on port ${PORT}`);
   });
 }
 
