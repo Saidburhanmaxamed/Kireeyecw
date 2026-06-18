@@ -512,15 +512,34 @@ export default function Header({
                     ? dbStatus.tablesExist
                       ? `Your app is syncing real-time queries directly into your Cloud Postgres instance. Cloud API target: ${dbStatus.supabaseUrl}`
                       : `Successfully connected to your Supabase project URL (${dbStatus.supabaseUrl}), but your PostgreSQL database tables are not set up yet! Please copy and execute the SQL migration script below in your Supabase SQL Editor to activate full cloud persistence.`
-                    : "The app is currently running in a fully-functional, high-performance in-memory mode so you can preview changes immediately! Provide the following environment variables in the variables panel to connect your production Supabase database:"}
+                    : "The app is currently running in a fully-functional in-memory cache mode for quick preview. To activate direct Cloud Persistence on both AI Studio (Node Express layout) and Netlify (Static CDN deployment), add these settings:"}
                 </p>
 
-                {!dbStatus.supabaseConnected && (
-                  <div className="mt-3 space-y-1.5 font-mono text-[11px] text-slate-600 dark:text-slate-350 bg-white dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800">
-                    <div><span className="text-blue-500 dark:text-blue-400 font-bold">SUPABASE_URL</span>=your-project-endpoint.supabase.co</div>
-                    <div><span className="text-blue-500 dark:text-blue-400 font-bold">SUPABASE_SERVICE_ROLE_KEY</span>=your-secret-bypass-service-key</div>
+                {/* Unified instructions on environment keys */}
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                      ⚡ For AI Studio Backend (Custom Express Server)
+                    </h5>
+                    <div className="font-mono text-[10px] text-slate-500 dark:text-slate-400 leading-tight space-y-1">
+                      <div><span className="text-blue-500 font-bold">SUPABASE_URL</span> = your-supabase-project-url</div>
+                      <div><span className="text-blue-500 font-bold">SUPABASE_SERVICE_ROLE_KEY</span> = your-service-role-secret</div>
+                    </div>
                   </div>
-                )}
+
+                  <div className="p-3 bg-blue-50/50 dark:bg-slate-900/40 rounded-xl border border-blue-100 dark:border-slate-800 space-y-2">
+                    <h5 className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                      🌐 For Netlify Production (Direct Client-Side Link)
+                    </h5>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
+                      Since Netlify hosts the client bundle as SPA, set these two environment variables under **Netlify Console ➜ Site Configuration ➜ Environment Variables** so the browser connects directly:
+                    </p>
+                    <div className="font-mono text-[10px] text-blue-600 dark:text-blue-400 leading-tight space-y-1">
+                      <div><span className="font-bold">VITE_SUPABASE_URL</span> = your-supabase-project-endpoint</div>
+                      <div><span className="font-bold">VITE_SUPABASE_ANON_KEY</span> = your-public-anon-key</div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>
