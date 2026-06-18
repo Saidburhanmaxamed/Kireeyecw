@@ -214,11 +214,63 @@ CREATE TABLE IF NOT EXISTS agency_logs (
   "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert central core users as primary fallbacks
-INSERT INTO users (id, name, email, role, phone, password, "createdAt")
-VALUES 
-('admin-ibnu', 'Ibnuburhan Guud', 'Ibnuburhan555@gmail.com', 'admin', '+252615555555', 'Maalinle555', '2026-06-08T00:00:00.000Z')
-ON CONFLICT (id) DO NOTHING;
+-- Ensure auto-migrations of newly added columns if tables already exist
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "agencyId" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "availableDate" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "dimensions" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "hasTitleDeed" BOOLEAN DEFAULT FALSE;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "zoning" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "numShops" INTEGER DEFAULT 0;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "hasParking" BOOLEAN DEFAULT FALSE;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalDeposit" NUMERIC DEFAULT 0;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "rentalPeriod" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "includedUtilities" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "paymentInstallments" BOOLEAN DEFAULT FALSE;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "downPaymentAmount" NUMERIC DEFAULT 0;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carMake" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carModel" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carYear" INTEGER;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carTransmission" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carFuelType" TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS "carMileage" NUMERIC;
+
+-- 8. Create Consolidated Broker Agencies & Properties View
+-- Agregates broker identity fields, agency affiliations, and newly created property list entries.
+DROP VIEW IF EXISTS broker_properties_report CASCADE;
+CREATE OR REPLACE VIEW broker_properties_report AS
+SELECT 
+  u.id AS broker_id,
+  u.name AS broker_name,
+  u.username AS broker_user_name,
+  u.phone AS broker_number,
+  u.email AS broker_email,
+  a.name AS agency_name,
+  a.email AS agency_email,
+  a.phone AS agency_phone,
+  p.id AS property_id,
+  p.title AS property_title,
+  p.price AS property_price,
+  p.location AS property_location,
+  p.region AS property_region,
+  p.status AS property_status,
+  p."createdAt" AS property_created_at
+FROM users u
+INNER JOIN properties p ON u.id = p."ownerId"
+LEFT JOIN agencies a ON p."agencyId" = a.id
+WHERE u.role = 'agent'
+ORDER BY p."createdAt" DESC;
+
+-- Insert central core users as primary fallbacks with extreme safety guards
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = 'admin-ibnu' OR email = 'Ibnuburhan555@gmail.com') THEN
+    INSERT INTO users (id, name, email, role, phone, password, "createdAt")
+    VALUES ('admin-ibnu', 'Ibnuburhan Guud', 'Ibnuburhan555@gmail.com', 'admin', '+252615555555', 'Maalinle555', '2026-06-08T00:00:00.000Z');
+  END IF;
+END $$;
 `;
 
 // Helper to check table connection & trigger self-seed if empty

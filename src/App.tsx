@@ -130,9 +130,14 @@ export default function App() {
       .catch((err) => {
         console.warn("Express backend db-status unreachable. Designing client-side status card.", err);
         const hasViteConfig = !!((import.meta as any).env.VITE_SUPABASE_URL && (import.meta as any).env.VITE_SUPABASE_ANON_KEY);
+        let sUrl = ((import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co").trim();
+        if (sUrl.endsWith("/rest/v1/")) sUrl = sUrl.slice(0, -9);
+        else if (sUrl.endsWith("/rest/v1")) sUrl = sUrl.slice(0, -8);
+        if (sUrl.endsWith("/")) sUrl = sUrl.slice(0, -1);
+
         setDbStatus({
           supabaseConnected: hasViteConfig,
-          supabaseUrl: (import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co",
+          supabaseUrl: sUrl,
           hasServiceRoleKey: false,
           sqlSchema: `-- SQL editor schemas are pre-built to execute on your remote instance. Click 'Copy SQL' inside.`,
           tablesExist: hasViteConfig

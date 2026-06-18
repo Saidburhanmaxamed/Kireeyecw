@@ -30,7 +30,8 @@ export const SAMPLE_PROPERTIES: Property[] = [
     ownerWhatsapp: "252615123456",
     approved: true,
     featured: true,
-    createdAt: "2026-05-15T08:30:00Z"
+    createdAt: "2026-05-15T08:30:00Z",
+    agencyId: "agency-1"
   },
   {
     id: "prop-2",
@@ -56,7 +57,8 @@ export const SAMPLE_PROPERTIES: Property[] = [
     approved: true,
     featured: true,
     createdAt: "2026-06-01T14:15:00Z",
-    availableDate: "2026-06-15"
+    availableDate: "2026-06-15",
+    agencyId: "agency-2"
   },
   {
     id: "prop-3",
@@ -82,7 +84,8 @@ export const SAMPLE_PROPERTIES: Property[] = [
     approved: true,
     featured: false,
     createdAt: "2026-05-28T09:20:00Z",
-    availableDate: "2026-06-25"
+    availableDate: "2026-06-25",
+    agencyId: "agency-1"
   },
   {
     id: "prop-4",

@@ -2,8 +2,17 @@ import { createClient } from "@supabase/supabase-js";
 import { Property, User, Inquiry, AppNotification, Testimonial, Agency, AgencyLog } from "../types";
 
 // Get client-side config from environment variables
-const VITE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co";
-const VITE_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkZXNjZGh6emt0ZWt4a296ZXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjAwNDUsImV4cCI6MjA5NzI5NjA0NX0.uFyZV-9yjZ2erJb_dhxScp6IHV_Gj0xRhI4SD8UcT9s";
+let VITE_URL = ((import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co").trim();
+if (VITE_URL.endsWith("/rest/v1/")) {
+  VITE_URL = VITE_URL.slice(0, -9);
+} else if (VITE_URL.endsWith("/rest/v1")) {
+  VITE_URL = VITE_URL.slice(0, -8);
+}
+if (VITE_URL.endsWith("/")) {
+  VITE_URL = VITE_URL.slice(0, -1);
+}
+
+const VITE_KEY = ((import.meta as any).env.VITE_SUPABASE_ANON_KEY || "sb_publishable_mOweHozV1BYtVdQXtWLHhQ_tsO9abQt").trim();
 
 // Initialize Supabase Client if Configured on client side
 let supabaseClient: any = null;
