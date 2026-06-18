@@ -24,9 +24,13 @@ import {
   HelpCircle,
   Shield,
   Briefcase,
-  UserCheck
+  UserCheck,
+  History,
+  Database,
+  MapPin,
+  Activity
 } from "lucide-react";
-import { Property, User as UserType, Inquiry } from "../types";
+import { Property, User as UserType, Inquiry, Agency, AgencyLog } from "../types";
 import { Language } from "../localization";
 
 interface AdminDashboardProps {
@@ -39,6 +43,11 @@ interface AdminDashboardProps {
   onCreateUser: (newUser: UserType) => void;
   inquiries: Inquiry[];
   onDeleteInquiry: (id: string) => void;
+  agencies?: Agency[];
+  agencyLogs?: AgencyLog[];
+  onCreateAgency?: (newAgency: Agency) => void;
+  onDeleteAgency?: (id: string) => void;
+  onCreateAgencyLog?: (newLog: AgencyLog) => void;
   language?: Language;
 }
 
@@ -52,9 +61,14 @@ export default function AdminDashboard({
   onCreateUser,
   inquiries,
   onDeleteInquiry,
+  agencies = [],
+  agencyLogs = [],
+  onCreateAgency = () => {},
+  onDeleteAgency = () => {},
+  onCreateAgencyLog = () => {},
   language = "en"
 }: AdminDashboardProps) {
-  const [adminTab, setAdminTab] = useState<"pending" | "properties" | "users" | "inquiries">("pending");
+  const [adminTab, setAdminTab] = useState<"pending" | "properties" | "users" | "inquiries" | "agencies">("pending");
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -62,6 +76,15 @@ export default function AdminDashboard({
   const [searchQueryUsers, setSearchQueryUsers] = useState("");
   const [searchQueryProperties, setSearchQueryProperties] = useState("");
   const [searchQueryInquiries, setSearchQueryInquiries] = useState("");
+  const [searchQueryAgencies, setSearchQueryAgencies] = useState("");
+
+  // Register Agency states
+  const [isCreatingAgency, setIsCreatingAgency] = useState(false);
+  const [aName, setAName] = useState("");
+  const [aEmail, setAEmail] = useState("");
+  const [aPhone, setAPhone] = useState("");
+  const [aLogo, setALogo] = useState("");
+  const [aLocation, setALocation] = useState("Waabari, Caabudwaaq");
 
   // Create User states
   const [isCreatingUser, setIsCreatingUser] = useState(false);
@@ -94,7 +117,8 @@ export default function AdminDashboard({
     { label: language === "en" ? "Pending Vettings" : "Hubinta Sugaya", value: pendingProperties.length, icon: AlertTriangle, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/40", tab: "pending" as const },
     { label: language === "en" ? "Active Listings" : "Guryaha Idman (Live)", value: approvedProperties.length, icon: Building2, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/10", tab: "properties" as const },
     { label: language === "en" ? "Vetted Brokers" : "Wakiilada Diiwaangashan", value: users.length, icon: Users, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/40", tab: "users" as const },
-    { label: language === "en" ? "Contact Inquiries" : "Fariimaha Macmiilka", value: inquiries.length, icon: MessageSquare, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/40", tab: "inquiries" as const }
+    { label: language === "en" ? "Contact Inquiries" : "Fariimaha Macmiilka", value: inquiries.length, icon: MessageSquare, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/40", tab: "inquiries" as const },
+    { label: language === "en" ? "Agencies & Logs" : "Wakaaladaha & Diiwaanka", value: agencies.length, icon: Database, color: "text-rose-500 bg-rose-50 dark:bg-rose-950/20", tab: "agencies" as const }
   ];
 
   // Global success/error notification helper
@@ -139,6 +163,35 @@ export default function AdminDashboard({
       setInquiryToDelete(null);
       triggerSuccess("Contact inquiry ticket deleted from admin operations dashboard.");
     }
+  };
+
+  // Register Agency Submit
+  const handleRegisterAgencySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aName.trim() || !aEmail.trim() || !aPhone.trim()) {
+      triggerError(language === "en" ? "Name, email, and phone are mandatory fields!" : "Magaca, iimaylka, iyo talifanka waa qasab!");
+      return;
+    }
+    const randomizedId = "agency-" + Math.random().toString(36).substr(2, 9);
+    const newLogo = aLogo.trim() || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=120&auto=format&fit=crop&q=60&ixlib=rb-4.0.3";
+    const agencyRecord = {
+      id: randomizedId,
+      name: aName.trim(),
+      email: aEmail.trim(),
+      phone: aPhone.trim(),
+      logo: newLogo,
+      location: aLocation,
+      createdAt: new Date().toISOString()
+    };
+    onCreateAgency(agencyRecord);
+    
+    // reset form fields
+    setAName("");
+    setAEmail("");
+    setAPhone("");
+    setALogo("");
+    setIsCreatingAgency(false);
+    triggerSuccess("Real Estate Agency successfully onboarded to system databases!");
   };
 
   // Create User Action
@@ -231,6 +284,17 @@ export default function AdminDashboard({
     i.message.toLowerCase().includes(searchQueryInquiries.toLowerCase())
   );
 
+  const filteredAgencies = agencies.filter(a => {
+    if (!searchQueryAgencies) return true;
+    const query = searchQueryAgencies.toLowerCase();
+    return (
+      a.name.toLowerCase().includes(query) ||
+      a.email.toLowerCase().includes(query) ||
+      a.phone.toLowerCase().includes(query) ||
+      a.location.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div id="admin-dashboard-root" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 transition-colors">
       
@@ -256,7 +320,7 @@ export default function AdminDashboard({
       </div>
 
       {/* Admin stats widgets - Interactive Clicking */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {stats.map((st) => {
           const Icon = st.icon;
           const isActive = adminTab === st.tab;
@@ -372,6 +436,23 @@ export default function AdminDashboard({
             </span>
             <span className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-full">
               {inquiries.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminTab("agencies")}
+            className={`w-full text-left py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex justify-between items-center transition-all cursor-pointer ${
+              adminTab === "agencies"
+                ? "bg-slate-900 dark:bg-emerald-600 text-white shadow-md"
+                : "bg-white dark:bg-slate-905 text-slate-600 hover:bg-slate-50 border border-gray-100 dark:border-slate-850 dark:text-slate-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <span>Agencies & Logs</span>
+            </span>
+            <span className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-full">
+              {agencies.length}
             </span>
           </button>
         </div>
@@ -888,6 +969,290 @@ export default function AdminDashboard({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 5: CENTRAL AGENCIES & AUDIT LOGGING DASHBOARD */}
+          {adminTab === "agencies" && (
+            <div className="space-y-6">
+              <div className="pb-4 border-b border-gray-100 dark:border-slate-850 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white animate-fade-in">
+                    {language === "en" ? "Real Estate Agencies & Central Audit Trail" : "Diiwaanka Wakaaladaha & Baaritaanka Guud"}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {language === "en" 
+                      ? "Manage partnered real estate agencies, register licensed broker bureaus, and audit deep-security logs." 
+                      : "Maamul dalladaha rasmiga ah ee kireynta, diiwaangeli xafiisyada rajiiciga ah, kuna baar dhabarka firfircoonida baraha."}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => setIsCreatingAgency(!isCreatingAgency)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all whitespace-nowrap cursor-pointer hover:scale-[1.02]"
+                  >
+                    {isCreatingAgency ? (
+                      <>
+                        <X className="h-4 w-4" />
+                        <span>{language === "en" ? "Cancel Form" : "Ka Noqo Form-ka"}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        <span>{language === "en" ? "Onboard Agency" : "Diiwaangeli Wakaalad"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* REGISTER NEW AGENCY FORM */}
+              {isCreatingAgency && (
+                <form
+                  onSubmit={handleRegisterAgencySubmit}
+                  className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-900/65 border border-gray-150 dark:border-slate-800 rounded-2xl animate-fade-in space-y-4 text-left"
+                >
+                  <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    {language === "en" ? "Real Estate Agency Credentials Form" : "Form-ka Diiwaangelinta Dalladda"}
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase mb-1">
+                        {language === "en" ? "Agency / Bureau Name *" : "Magaca Wakaaladda/Dalladda *"}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Caabudwaaq Elite Brokers"
+                        value={aName}
+                        onChange={(e) => setAName(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3.5 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase mb-1">
+                        {language === "en" ? "Official Contact Email *" : "Iimaylka Rasmiga ah *"}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. info@caabudwaaqelite.so"
+                        value={aEmail}
+                        onChange={(e) => setAEmail(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3.5 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase mb-1">
+                        {language === "en" ? "Registered Phone Line *" : "Telefanka Wakaaladda *"}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. +252615554321"
+                        value={aPhone}
+                        onChange={(e) => setAPhone(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3.5 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase mb-1">
+                        {language === "en" ? "Central Region Bureau *" : "Wajeerada Baaxada Xafiiska *"}
+                      </label>
+                      <select
+                        value={aLocation}
+                        onChange={(e) => setALocation(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3.5 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200 font-sans"
+                      >
+                        <option value="Waabari, Caabudwaaq">Waabari, Caabudwaaq</option>
+                        <option value="Amaana, Caabudwaaq">Amaana, Caabudwaaq</option>
+                        <option value="October, Caabudwaaq">October, Caabudwaaq</option>
+                        <option value="Horseed, Caabudwaaq">Horseed, Caabudwaaq</option>
+                        <option value="Liido Beach, Mogadishu">Liido Beach, Mogadishu</option>
+                        <option value="Hantiwadaag, Caabudwaaq">Hantiwadaag, Caabudwaaq</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase mb-1">
+                        {language === "en" ? "Brand Display Logo Link URL" : "Isku-xirka Astaan-Guud (Brand Logo URL)"}
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="e.g. https://images.unsplash.com/photo-... (optional)"
+                        value={aLogo}
+                        onChange={(e) => setALogo(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-2.5 px-3.5 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingAgency(false)}
+                      className="px-4 py-2 border border-slate-250 dark:border-slate-800 text-slate-600 dark:text-slate-350 text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-950 cursor-pointer"
+                    >
+                      {language === "en" ? "Cancel" : "Ku Laabo"}
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
+                    >
+                      {language === "en" ? "Save Bureau" : "Keydi Xafiiska"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* TWO PANEL SPLIT ROW */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                
+                {/* PART A: Partner Agencies Card List */}
+                <div className="lg:col-span-3 space-y-4">
+                  <div className="relative w-full mb-2">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder={language === "en" ? "Filter local agency bureaus..." : "Kala shaandhee wakaaladaha..."}
+                      value={searchQueryAgencies}
+                      onChange={(e) => setSearchQueryAgencies(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 py-2 pl-9 pr-4 text-xs rounded-xl focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-200"
+                    />
+                    {searchQueryAgencies && (
+                      <button onClick={() => setSearchQueryAgencies("")} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {filteredAgencies.length === 0 ? (
+                    <div className="text-center py-20 bg-slate-50/50 dark:bg-slate-900/40 rounded-2xl border border-gray-100 dark:border-slate-850/60 text-slate-400 italic text-xs">
+                      {language === "en" ? "No Partner Bureau registries found." : "Ma jiraan xafiisyo wakaaladeed oo ku jira xogta."}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredAgencies.map((agency) => (
+                        <div
+                          key={agency.id}
+                          className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-850 flex items-center justify-between gap-4 text-left relative overflow-hidden group hover:shadow-xs transition-shadow"
+                        >
+                          <div className="flex gap-4 items-start">
+                            <div className="h-12 w-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950 shrink-0">
+                              <img
+                                src={agency.logo}
+                                alt={agency.name}
+                                referrerPolicy="no-referrer"
+                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 text-emerald-800 uppercase tracking-widest leading-none block w-max">
+                                {language === "en" ? "Licensed Bureau" : "Astaan Shati Leh"}
+                              </span>
+                              <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-tight">
+                                {agency.name}
+                              </h4>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 leading-none">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                                  <span>{agency.location}</span>
+                                </span>
+                                <span className="hidden md:inline text-slate-300 dark:text-slate-700">|</span>
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                                  <span>{agency.email}</span>
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {language === "en" ? "Onboarded:" : "Diiwaangashay:"} {new Date(agency.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 flex self-center">
+                            <button
+                              onClick={() => {
+                                if (confirm(language === "en" ? `Are you absolutely sure you want to remove ${agency.name} agency and completely suspend its affiliated brokers?` : `Ma hubtaa inaad gabi ahaanba tirtirto wakaaladda ${agency.name}?`)) {
+                                  onDeleteAgency(agency.id);
+                                }
+                              }}
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 border border-transparent hover:border-red-100 dark:hover:border-red-950/60 rounded-xl cursor-pointer transition-colors"
+                              title={language === "en" ? "Revoke Agency Partner License" : "Ka laabo shatiga dalladda"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* PART B: Supabase Agency Logs Table Audit Trail */}
+                <div className="lg:col-span-2 space-y-4 animate-fade-in">
+                  <div className="p-4 rounded-2xl bg-slate-900 text-slate-105 border border-slate-800 text-left">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-rose-500 animate-pulse" />
+                        <h4 className="font-mono text-xs font-bold uppercase tracking-wider text-white">
+                          {language === "en" ? "Live Supabase Database Logs" : "Diiwaanka Tooska Ah (Supabase)"}
+                        </h4>
+                      </div>
+                      <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        {language === "en" ? "Live Trace" : "Xog-Toosah"}
+                      </span>
+                    </div>
+
+                    {agencyLogs.length === 0 ? (
+                      <div className="py-20 text-center text-slate-500 font-mono text-[11px] italic">
+                        {language === "en" ? "No logging trails processed yet." : "Diiwaanka tooska ah weli waa eber."}
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+                        {agencyLogs.map((log) => {
+                          let badgeBg = "bg-slate-800 text-slate-300";
+                          if (log.action === "AGENCY_REGISTERED") badgeBg = "bg-emerald-950 text-emerald-400 border border-emerald-500/20";
+                          if (log.action === "AGENCY_DELETED") badgeBg = "bg-rose-950 text-rose-400 border border-rose-500/20";
+                          if (log.action === "AUTHORIZED_BROKER") badgeBg = "bg-blue-950 text-blue-400 border border-blue-500/20";
+                          if (log.action === "VERIFIED_LISTING") badgeBg = "bg-amber-950 text-amber-400 border border-amber-500/20";
+
+                          return (
+                            <div
+                              key={log.id}
+                              className="p-3 rounded-xl bg-slate-950 border border-slate-850 space-y-1.5 hover:bg-slate-950/70 transition-colors"
+                            >
+                              <div className="flex justify-between items-start flex-wrap gap-2">
+                                <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${badgeBg} tracking-wide uppercase`}>
+                                  {log.action}
+                                </span>
+                                <span className="text-[8px] text-slate-500 font-mono">
+                                  {new Date(log.createdAt).toLocaleTimeString()}
+                                </span>
+                              </div>
+
+                              <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                                {log.details}
+                              </p>
+
+                              <div className="text-[8px] text-slate-600 font-mono flex justify-between pt-1 border-t border-slate-900">
+                                <span>Ref: {log.id}</span>
+                                <span>Agency: {log.agencyId}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
             </div>
           )}
 

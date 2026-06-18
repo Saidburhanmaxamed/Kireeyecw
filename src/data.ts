@@ -335,3 +335,60 @@ export const SAMPLE_FAQS: FAQItem[] = [
 ];
 
 export const SOMALI_REGIONS = ["Horseed", "October", "1 Luuliyo", "Amaana", "Waabari", "Ubax"];
+
+export const SEED_AGENCIES = [
+  {
+    id: "agency-1",
+    name: "Juba Valley Agency",
+    email: "juba.valley@agency.so",
+    phone: "+252615551234",
+    logo: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=120&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
+    location: "Waabari, Caabudwaaq",
+    createdAt: new Date("2026-05-01").toISOString()
+  },
+  {
+    id: "agency-2",
+    name: "Galgaduud Trust Realty",
+    email: "galgaduud.trust@agency.so",
+    phone: "+252615555678",
+    logo: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=120&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
+    location: "Koonfur, Caabudwaaq",
+    createdAt: new Date("2026-05-15").toISOString()
+  },
+  {
+    id: "agency-3",
+    name: "Somali Star Brokers",
+    email: "somali.star@agency.so",
+    phone: "+252615559012",
+    logo: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=120&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
+    location: "Liido Beach, Mogadishu",
+    createdAt: new Date("2026-05-20").toISOString()
+  }
+];
+
+export const SEED_AGENCY_LOGS = [
+  {
+    id: "log-1",
+    agencyId: "agency-1",
+    action: "AUTHORIZED_BROKER",
+    targetId: "user-agent-1",
+    details: "Authorized new Broker Agent Mohamed Farah for legal title-deed validations.",
+    createdAt: new Date("2026-06-01T10:30:00Z").toISOString()
+  },
+  {
+    id: "log-2",
+    agencyId: "agency-2",
+    action: "VERIFIED_LISTING",
+    targetId: "prop-1",
+    details: "Audited & verified title deed registration for Caabudwaaq Commercial Block.",
+    createdAt: new Date("2026-06-03T14:15:00Z").toISOString()
+  },
+  {
+    id: "log-3",
+    agencyId: "agency-1",
+    action: "INQUIRY_ROUTED",
+    targetId: "inq-1",
+    details: "Routed rental inquiry for Waabari Commercial Hub to assigned field agent.",
+    createdAt: new Date("2026-06-12T09:00:00Z").toISOString()
+  }
+];

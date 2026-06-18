@@ -2,13 +2,13 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { Property, User, Inquiry, AppNotification, Testimonial } from "./src/types";
+import { Property, User, Inquiry, AppNotification, Testimonial, Agency, AgencyLog } from "./src/types";
 
 // Supabase Client imports
 import { createClient } from "@supabase/supabase-js";
 
 // Seed data
-import { SAMPLE_PROPERTIES } from "./src/data";
+import { SAMPLE_PROPERTIES, SEED_AGENCIES, SEED_AGENCY_LOGS } from "./src/data";
 
 const app = express();
 const PORT = 3000;
@@ -56,6 +56,9 @@ let inInMemoryUsers: User[] = [...SEED_USERS];
 let inInMemoryInquiries: Inquiry[] = [];
 let inInMemoryNotifications: AppNotification[] = [];
 let inInMemoryTestimonials: Testimonial[] = [];
+
+let inInMemoryAgencies: Agency[] = [...SEED_AGENCIES];
+let inInMemoryAgencyLogs: AgencyLog[] = [...SEED_AGENCY_LOGS];
 
 // Lazy client setup to satisfy robust system conventions
 let SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
@@ -234,6 +237,20 @@ async function seedDefaultDataIfEmpty() {
       console.log("[Supabase Seeding] Supabase connected and properties table is empty. Injecting seed active catalog listings...");
       await supabase.from("properties").insert(SAMPLE_PROPERTIES as any);
     }
+
+    // Audit Agencies table
+    const { data: agencies, error: agencyErr } = await supabase.from("agencies").select("id").limit(1);
+    if (!agencyErr && (!agencies || agencies.length === 0)) {
+      console.log("[Supabase Seeding] Supabase connected and agencies table is empty. Injecting seed agencies...");
+      await supabase.from("agencies").insert(SEED_AGENCIES as any);
+    }
+
+    // Audit Agency Logs table
+    const { data: agencyLogs, error: logErr } = await supabase.from("agency_logs").select("id").limit(1);
+    if (!logErr && (!agencyLogs || agencyLogs.length === 0)) {
+      console.log("[Supabase Seeding] Supabase connected and agency_logs table is empty. Injecting seed agency logs...");
+      await supabase.from("agency_logs").insert(SEED_AGENCY_LOGS as any);
+    }
   } catch (err) {
     console.error("[Supabase Seeding] Lazy auto-seeding warning:", err);
   }
@@ -285,12 +302,14 @@ app.get("/api/data-bootstrap", async (req, res) => {
   if (supabase) {
     await seedDefaultDataIfEmpty();
     try {
-      const [pRes, uRes, iRes, nRes, tRes] = await Promise.all([
+      const [pRes, uRes, iRes, nRes, tRes, aRes, alRes] = await Promise.all([
         supabase.from("properties").select("*").order("createdAt", { ascending: false }),
         supabase.from("users").select("*"),
         supabase.from("inquiries").select("*"),
         supabase.from("notifications").select("*").order("createdAt", { ascending: false }),
-        supabase.from("testimonials").select("*")
+        supabase.from("testimonials").select("*"),
+        supabase.from("agencies").select("*"),
+        supabase.from("agency_logs").select("*").order("createdAt", { ascending: false })
       ]);
 
       return res.json({
@@ -299,7 +318,9 @@ app.get("/api/data-bootstrap", async (req, res) => {
         users: uRes.data || inInMemoryUsers,
         inquiries: iRes.data || inInMemoryInquiries,
         notifications: nRes.data || inInMemoryNotifications,
-        testimonials: tRes.data || inInMemoryTestimonials
+        testimonials: tRes.data || inInMemoryTestimonials,
+        agencies: aRes.data || inInMemoryAgencies,
+        agencyLogs: alRes.data || inInMemoryAgencyLogs
       });
     } catch (err) {
       console.error("[Supabase Error] Error compiling bootstrap bundle:", err);
@@ -314,7 +335,9 @@ app.get("/api/data-bootstrap", async (req, res) => {
     users: inInMemoryUsers,
     inquiries: inInMemoryInquiries,
     notifications: inInMemoryNotifications,
-    testimonials: inInMemoryTestimonials
+    testimonials: inInMemoryTestimonials,
+    agencies: inInMemoryAgencies,
+    agencyLogs: inInMemoryAgencyLogs
   });
 });
 
@@ -531,6 +554,77 @@ app.put("/api/notifications/:id", async (req, res) => {
   // Update fallback memory State
   inInMemoryNotifications = inInMemoryNotifications.map(n => n.id === id ? { ...n, ...fields } : n);
   res.json({ success: true, id });
+});
+
+// AGENCIES & AGENCY LOGS ENDPOINTS
+app.get("/api/agencies", async (req, res) => {
+  if (supabase) {
+    const { data, error } = await supabase.from("agencies").select("*").order("createdAt", { ascending: false });
+    if (!error && data) return res.json(data);
+  }
+  res.json(inInMemoryAgencies);
+});
+
+app.post("/api/agencies", async (req, res) => {
+  const newAgency = req.body as Agency;
+  if (!newAgency.id) {
+    newAgency.id = "agency-" + Math.random().toString(36).substr(2, 9);
+  }
+  if (!newAgency.createdAt) {
+    newAgency.createdAt = new Date().toISOString();
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from("agencies").insert([newAgency] as any);
+    if (!error) return res.status(201).json(newAgency);
+    console.error("[Supabase Error] agencies POST failed:", error);
+  }
+
+  // Fallback state
+  inInMemoryAgencies = [newAgency, ...inInMemoryAgencies];
+  res.status(201).json(newAgency);
+});
+
+app.delete("/api/agencies/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (supabase) {
+    const { error } = await supabase.from("agencies").delete().eq("id", id);
+    if (!error) return res.json({ success: true, id });
+    console.error("[Supabase Error] agencies DELETE failed:", error);
+  }
+
+  // Fallback state
+  inInMemoryAgencies = inInMemoryAgencies.filter(a => a.id !== id);
+  res.json({ success: true, id });
+});
+
+app.get("/api/agency-logs", async (req, res) => {
+  if (supabase) {
+    const { data, error } = await supabase.from("agency_logs").select("*").order("createdAt", { ascending: false });
+    if (!error && data) return res.json(data);
+  }
+  res.json(inInMemoryAgencyLogs);
+});
+
+app.post("/api/agency-logs", async (req, res) => {
+  const newLog = req.body as AgencyLog;
+  if (!newLog.id) {
+    newLog.id = "log-" + Math.random().toString(36).substr(2, 9);
+  }
+  if (!newLog.createdAt) {
+    newLog.createdAt = new Date().toISOString();
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from("agency_logs").insert([newLog] as any);
+    if (!error) return res.status(201).json(newLog);
+    console.error("[Supabase Error] agency_logs POST failed:", error);
+  }
+
+  // Fallback state
+  inInMemoryAgencyLogs = [newLog, ...inInMemoryAgencyLogs];
+  res.status(201).json(newLog);
 });
 
 // Dev server / production server setups

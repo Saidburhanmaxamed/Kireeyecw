@@ -7,7 +7,9 @@ import React, { useState, useEffect } from "react";
 import { 
   SAMPLE_PROPERTIES, 
   SAMPLE_FAQS, 
-  SAMPLE_TESTIMONIALS 
+  SAMPLE_TESTIMONIALS,
+  SEED_AGENCIES,
+  SEED_AGENCY_LOGS
 } from "./data";
 import { 
   Property, 
@@ -16,7 +18,9 @@ import {
   AppNotification, 
   PropertyStatus,
   PropertyCategory,
-  Testimonial 
+  Testimonial,
+  Agency,
+  AgencyLog 
 } from "./types";
 import Header from "./components/Header";
 import Hero, { SearchFilters } from "./components/Hero";
@@ -80,6 +84,8 @@ export default function App() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [agencyLogs, setAgencyLogs] = useState<AgencyLog[]>([]);
 
   // Navigation State & Search Filters
   const [activeTab, setActiveTab] = useState<string>("home");
@@ -151,6 +157,12 @@ export default function App() {
       const localTestimonialsStr = localStorage.getItem("sre_testimonials");
       const localTestimonials = localTestimonialsStr ? JSON.parse(localTestimonialsStr) : null;
 
+      const localAgenciesStr = localStorage.getItem("sre_agencies");
+      const localAgencies = localAgenciesStr ? JSON.parse(localAgenciesStr) : null;
+
+      const localAgencyLogsStr = localStorage.getItem("sre_agency_logs");
+      const localAgencyLogs = localAgencyLogsStr ? JSON.parse(localAgencyLogsStr) : null;
+
       if (supabaseClient) {
         try {
           console.log("[Dual Mode] Fetching database collections directly from client-side Supabase SDK...");
@@ -217,6 +229,32 @@ export default function App() {
           } else {
             setTestimonials(SAMPLE_TESTIMONIALS);
             localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
+          }
+
+          if (data.agencies && data.agencies.length > 0) {
+            const remoteIds = new Set(data.agencies.map((a: any) => a.id));
+            const localCustom = (localAgencies || []).filter((a: any) => !remoteIds.has(a.id));
+            const mergedAgencies = [...localCustom, ...data.agencies];
+            setAgencies(mergedAgencies);
+            localStorage.setItem("sre_agencies", JSON.stringify(mergedAgencies));
+          } else if (localAgencies && localAgencies.length > 0) {
+            setAgencies(localAgencies);
+          } else {
+            setAgencies(SEED_AGENCIES);
+            localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
+          }
+
+          if (data.agencyLogs && data.agencyLogs.length > 0) {
+            const remoteIds = new Set(data.agencyLogs.map((al: any) => al.id));
+            const localCustom = (localAgencyLogs || []).filter((al: any) => !remoteIds.has(al.id));
+            const mergedLogs = [...localCustom, ...data.agencyLogs];
+            setAgencyLogs(mergedLogs);
+            localStorage.setItem("sre_agency_logs", JSON.stringify(mergedLogs));
+          } else if (localAgencyLogs && localAgencyLogs.length > 0) {
+            setAgencyLogs(localAgencyLogs);
+          } else {
+            setAgencyLogs(SEED_AGENCY_LOGS);
+            localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
           }
           
           return; // Bootstrap completed via direct SDK!
@@ -288,6 +326,30 @@ export default function App() {
           } else {
             setTestimonials(SAMPLE_TESTIMONIALS);
           }
+
+          if (data.agencies && data.agencies.length > 0) {
+            const remoteIds = new Set(data.agencies.map((a: any) => a.id));
+            const localCustom = (localAgencies || []).filter((a: any) => !remoteIds.has(a.id));
+            const mergedAgencies = [...localCustom, ...data.agencies];
+            setAgencies(mergedAgencies);
+            localStorage.setItem("sre_agencies", JSON.stringify(mergedAgencies));
+          } else if (localAgencies && localAgencies.length > 0) {
+            setAgencies(localAgencies);
+          } else {
+            setAgencies(SEED_AGENCIES);
+          }
+
+          if (data.agencyLogs && data.agencyLogs.length > 0) {
+            const remoteIds = new Set(data.agencyLogs.map((al: any) => al.id));
+            const localCustom = (localAgencyLogs || []).filter((al: any) => !remoteIds.has(al.id));
+            const mergedLogs = [...localCustom, ...data.agencyLogs];
+            setAgencyLogs(mergedLogs);
+            localStorage.setItem("sre_agency_logs", JSON.stringify(mergedLogs));
+          } else if (localAgencyLogs && localAgencyLogs.length > 0) {
+            setAgencyLogs(localAgencyLogs);
+          } else {
+            setAgencyLogs(SEED_AGENCY_LOGS);
+          }
         })
         .catch((err) => {
           console.log("[Dual Mode] Backend server unreachable. Restoring secure cache fallback.", err);
@@ -323,6 +385,22 @@ export default function App() {
             setTestimonials(JSON.parse(savedTestimonials));
           } else {
             setTestimonials(SAMPLE_TESTIMONIALS);
+          }
+
+          const savedAgencies = localStorage.getItem("sre_agencies");
+          if (savedAgencies) {
+            setAgencies(JSON.parse(savedAgencies));
+          } else {
+            localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
+            setAgencies(SEED_AGENCIES);
+          }
+
+          const savedAgencyLogs = localStorage.getItem("sre_agency_logs");
+          if (savedAgencyLogs) {
+            setAgencyLogs(JSON.parse(savedAgencyLogs));
+          } else {
+            localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
+            setAgencyLogs(SEED_AGENCY_LOGS);
           }
         });
     };
@@ -788,6 +866,87 @@ export default function App() {
     triggerToast("Contact inquiry removed from console", "info");
   };
 
+  const handleCreateAgency = async (newAgency: Agency) => {
+    try {
+      if (supabaseClient) {
+         await supabaseDirectApi.insertAgency(newAgency);
+      } else {
+         await fetch("/api/agencies", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(newAgency)
+         });
+      }
+      const updated = [newAgency, ...agencies];
+      setAgencies(updated);
+      localStorage.setItem("sre_agencies", JSON.stringify(updated));
+      triggerToast(language === "en" ? "Agency registered successfully!" : "Wakaaladda waa la diiwaangeliyey!", "success");
+
+      // Log action
+      const auditLog: AgencyLog = {
+        id: "log-" + Math.random().toString(36).substr(2, 9),
+        agencyId: newAgency.id,
+        action: "AGENCY_REGISTERED",
+        details: `Registered new Agency "${newAgency.name}" located at ${newAgency.location}.`,
+        createdAt: new Date().toISOString()
+      };
+      await handleCreateAgencyLog(auditLog);
+    } catch (err: any) {
+      console.error("Create agency error:", err);
+      triggerToast("Error: " + err.message, "info");
+    }
+  };
+
+  const handleDeleteAgency = async (id: string) => {
+    try {
+      const targetAgency = agencies.find(a => a.id === id);
+      if (supabaseClient) {
+         await supabaseDirectApi.deleteAgency(id);
+      } else {
+         await fetch(`/api/agencies/${id}`, {
+           method: "DELETE"
+         });
+      }
+      const updated = agencies.filter(a => a.id !== id);
+      setAgencies(updated);
+      localStorage.setItem("sre_agencies", JSON.stringify(updated));
+      triggerToast(language === "en" ? "Agency removed successfully." : "Wakaaladda waa laga tirtiray.", "info");
+
+      if (targetAgency) {
+        const auditLog: AgencyLog = {
+          id: "log-" + Math.random().toString(36).substr(2, 9),
+          agencyId: id,
+          action: "AGENCY_DELETED",
+          details: `Deleted real estate agency association for ${targetAgency.name}.`,
+          createdAt: new Date().toISOString()
+        };
+        await handleCreateAgencyLog(auditLog);
+      }
+    } catch (err: any) {
+      console.error("Delete agency error:", err);
+      triggerToast("Error: " + err.message, "info");
+    }
+  };
+
+  const handleCreateAgencyLog = async (newLog: AgencyLog) => {
+    try {
+      if (supabaseClient) {
+         await supabaseDirectApi.insertAgencyLog(newLog);
+      } else {
+         await fetch("/api/agency-logs", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(newLog)
+         });
+      }
+      const updated = [newLog, ...agencyLogs];
+      setAgencyLogs(updated);
+      localStorage.setItem("sre_agency_logs", JSON.stringify(updated));
+    } catch (err) {
+      console.error("Storing log failed:", err);
+    }
+  };
+
   const handleApproveProperty = (id: string) => {
     const updated = properties.map((p) => {
       if (p.id === id) {
@@ -974,6 +1133,11 @@ export default function App() {
               onCreateUser={handleCreateUser}
               inquiries={inquiries}
               onDeleteInquiry={handleDeleteInquiry}
+              agencies={agencies}
+              agencyLogs={agencyLogs}
+              onCreateAgency={handleCreateAgency}
+              onDeleteAgency={handleDeleteAgency}
+              onCreateAgencyLog={handleCreateAgencyLog}
               language={language}
             />
           </div>

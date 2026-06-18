@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Property, User, Inquiry, AppNotification, Testimonial } from "../types";
+import { Property, User, Inquiry, AppNotification, Testimonial, Agency, AgencyLog } from "../types";
 
 // Get client-side config from environment variables
 const VITE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co";
@@ -35,12 +35,14 @@ export const supabaseDirectApi = {
   async fetchBootstrapData() {
     if (!supabaseClient) throw new Error("Supabase client is not initialized");
     
-    const [pRes, uRes, iRes, nRes, tRes] = await Promise.all([
+    const [pRes, uRes, iRes, nRes, tRes, aRes, alRes] = await Promise.all([
       supabaseClient.from("properties").select("*").order("createdAt", { ascending: false }),
       supabaseClient.from("users").select("*"),
       supabaseClient.from("inquiries").select("*"),
       supabaseClient.from("notifications").select("*").order("createdAt", { ascending: false }),
-      supabaseClient.from("testimonials").select("*")
+      supabaseClient.from("testimonials").select("*"),
+      supabaseClient.from("agencies").select("*"),
+      supabaseClient.from("agency_logs").select("*").order("createdAt", { ascending: false })
     ]);
 
     if (pRes.error) throw pRes.error;
@@ -50,7 +52,9 @@ export const supabaseDirectApi = {
       users: uRes.data || [],
       inquiries: iRes.data || [],
       notifications: nRes.data || [],
-      testimonials: tRes.data || []
+      testimonials: tRes.data || [],
+      agencies: aRes.data || [],
+      agencyLogs: alRes.data || []
     };
   },
 
@@ -122,5 +126,26 @@ export const supabaseDirectApi = {
     const { error } = await supabaseClient.from("notifications").update(fields).eq("id", id);
     if (error) throw error;
     return { success: true, id };
+  },
+
+  async insertAgency(agency: Agency) {
+    if (!supabaseClient) throw new Error("Supabase client is not initialized");
+    const { error } = await supabaseClient.from("agencies").insert([agency]);
+    if (error) throw error;
+    return agency;
+  },
+
+  async deleteAgency(id: string) {
+    if (!supabaseClient) throw new Error("Supabase client is not initialized");
+    const { error } = await supabaseClient.from("agencies").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true, id };
+  },
+
+  async insertAgencyLog(log: AgencyLog) {
+    if (!supabaseClient) throw new Error("Supabase client is not initialized");
+    const { error } = await supabaseClient.from("agency_logs").insert([log]);
+    if (error) throw error;
+    return log;
   }
 };

@@ -109,3 +109,22 @@ export interface FAQItem {
   question: string;
   answer: string;
 }
+
+export interface Agency {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  logo?: string;
+  location: string;
+  createdAt: string;
+}
+
+export interface AgencyLog {
+  id: string;
+  agencyId: string;
+  action: string;
+  targetId?: string;
+  details?: string;
+  createdAt: string;
+}
