@@ -3,7 +3,7 @@ import { Property, User, Inquiry, AppNotification, Testimonial } from "../types"
 
 // Get client-side config from environment variables
 const VITE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co";
-const VITE_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
+const VITE_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkZXNjZGh6emt0ZWt4a296ZXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjAwNDUsImV4cCI6MjA5NzI5NjA0NX0.uFyZV-9yjZ2erJb_dhxScp6IHV_Gj0xRhI4SD8UcT9s";
 
 // Initialize Supabase Client if Configured on client side
 let supabaseClient: any = null;
