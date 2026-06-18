@@ -189,6 +189,27 @@ CREATE TABLE IF NOT EXISTS testimonials (
   rating INTEGER NOT NULL DEFAULT 5
 );
 
+-- 6. Create Agencies Table
+CREATE TABLE IF NOT EXISTS agencies (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  phone TEXT NOT NULL,
+  logo TEXT,
+  location TEXT,
+  "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Create Agency Logs Table
+CREATE TABLE IF NOT EXISTS agency_logs (
+  id TEXT PRIMARY KEY,
+  "agencyId" TEXT NOT NULL,
+  action TEXT NOT NULL,
+  "targetId" TEXT,
+  details TEXT,
+  "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert central core users as primary fallbacks
 INSERT INTO users (id, name, email, role, phone, password, "createdAt")
 VALUES 

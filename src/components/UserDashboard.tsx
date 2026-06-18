@@ -469,7 +469,7 @@ export default function UserDashboard({
       areaSize: category === PropertyCategory.CarSale ? 0 : (parseFloat(areaSize) || 100),
       images: chosenImages,
       featured: false,
-      availableDate: availableDate ? availableDate : undefined,
+      availableDate: availableDate ? availableDate : null,
       // Custom category specific attributes
       dimensions: category === PropertyCategory.LandSale ? dimensions : undefined,
       hasTitleDeed: category === PropertyCategory.LandSale ? hasTitleDeed : undefined,

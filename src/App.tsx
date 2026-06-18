@@ -135,30 +135,89 @@ export default function App() {
 
     // 2. Fetch server bootstrap data (with elegant Netlify direct Supabase client fallback)
     const bootstrapAppData = async () => {
+      // Load current local states so we never overwrite user's listings if remote tables are not yet setup or are empty
+      const localPropsStr = localStorage.getItem("sre_properties");
+      const localProps = localPropsStr ? JSON.parse(localPropsStr) : null;
+
+      const localUsersStr = localStorage.getItem("sre_registered_users");
+      const localUsers = localUsersStr ? JSON.parse(localUsersStr) : null;
+
+      const localInquiriesStr = localStorage.getItem("sre_inquiries");
+      const localInquiries = localInquiriesStr ? JSON.parse(localInquiriesStr) : null;
+
+      const localNotifsStr = localStorage.getItem("sre_notifications");
+      const localNotifs = localNotifsStr ? JSON.parse(localNotifsStr) : null;
+
+      const localTestimonialsStr = localStorage.getItem("sre_testimonials");
+      const localTestimonials = localTestimonialsStr ? JSON.parse(localTestimonialsStr) : null;
+
       if (supabaseClient) {
         try {
           console.log("[Dual Mode] Fetching database collections directly from client-side Supabase SDK...");
           const data = await supabaseDirectApi.fetchBootstrapData();
           
           if (data.properties && data.properties.length > 0) {
-            setProperties(data.properties);
-            localStorage.setItem("sre_properties", JSON.stringify(data.properties));
+            const remoteIds = new Set(data.properties.map((p: any) => p.id));
+            const localCustom = (localProps || []).filter((p: any) => !remoteIds.has(p.id));
+            const mergedProps = [...localCustom, ...data.properties];
+            setProperties(mergedProps);
+            localStorage.setItem("sre_properties", JSON.stringify(mergedProps));
+          } else if (localProps && localProps.length > 0) {
+            setProperties(localProps);
           } else {
             setProperties(SAMPLE_PROPERTIES);
             localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
           }
 
-          setRegisteredUsers(data.users && data.users.length > 0 ? data.users : INITIAL_USERS);
-          localStorage.setItem("sre_registered_users", JSON.stringify(data.users && data.users.length > 0 ? data.users : INITIAL_USERS));
+          if (data.users && data.users.length > 0) {
+            const remoteIds = new Set(data.users.map((u: any) => u.id));
+            const localCustom = (localUsers || []).filter((u: any) => !remoteIds.has(u.id));
+            const mergedUsers = [...localCustom, ...data.users];
+            setRegisteredUsers(mergedUsers);
+            localStorage.setItem("sre_registered_users", JSON.stringify(mergedUsers));
+          } else if (localUsers && localUsers.length > 0) {
+            setRegisteredUsers(localUsers);
+          } else {
+            setRegisteredUsers(INITIAL_USERS);
+            localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
+          }
 
-          setInquiries(data.inquiries || []);
-          localStorage.setItem("sre_inquiries", JSON.stringify(data.inquiries || []));
+          if (data.inquiries && data.inquiries.length > 0) {
+            const remoteIds = new Set(data.inquiries.map((i: any) => i.id));
+            const localCustom = (localInquiries || []).filter((i: any) => !remoteIds.has(i.id));
+            const mergedInquiries = [...localCustom, ...data.inquiries];
+            setInquiries(mergedInquiries);
+            localStorage.setItem("sre_inquiries", JSON.stringify(mergedInquiries));
+          } else if (localInquiries && localInquiries.length > 0) {
+            setInquiries(localInquiries);
+          } else {
+            setInquiries([]);
+          }
 
-          setNotifications(data.notifications || []);
-          localStorage.setItem("sre_notifications", JSON.stringify(data.notifications || []));
+          if (data.notifications && data.notifications.length > 0) {
+            const remoteIds = new Set(data.notifications.map((n: any) => n.id));
+            const localCustom = (localNotifs || []).filter((n: any) => !remoteIds.has(n.id));
+            const mergedNotifs = [...localCustom, ...data.notifications];
+            setNotifications(mergedNotifs);
+            localStorage.setItem("sre_notifications", JSON.stringify(mergedNotifs));
+          } else if (localNotifs && localNotifs.length > 0) {
+            setNotifications(localNotifs);
+          } else {
+            setNotifications([]);
+          }
 
-          setTestimonials(data.testimonials && data.testimonials.length > 0 ? data.testimonials : SAMPLE_TESTIMONIALS);
-          localStorage.setItem("sre_testimonials", JSON.stringify(data.testimonials && data.testimonials.length > 0 ? data.testimonials : SAMPLE_TESTIMONIALS));
+          if (data.testimonials && data.testimonials.length > 0) {
+            const remoteIds = new Set(data.testimonials.map((t: any) => t.id));
+            const localCustom = (localTestimonials || []).filter((t: any) => !remoteIds.has(t.id));
+            const mergedTestimonials = [...localCustom, ...data.testimonials];
+            setTestimonials(mergedTestimonials);
+            localStorage.setItem("sre_testimonials", JSON.stringify(mergedTestimonials));
+          } else if (localTestimonials && localTestimonials.length > 0) {
+            setTestimonials(localTestimonials);
+          } else {
+            setTestimonials(SAMPLE_TESTIMONIALS);
+            localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
+          }
           
           return; // Bootstrap completed via direct SDK!
         } catch (sdkErr) {
@@ -171,28 +230,61 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => {
           if (data.properties && data.properties.length > 0) {
-            setProperties(data.properties);
-            localStorage.setItem("sre_properties", JSON.stringify(data.properties));
+            const remoteIds = new Set(data.properties.map((p: any) => p.id));
+            const localCustom = (localProps || []).filter((p: any) => !remoteIds.has(p.id));
+            const mergedProps = [...localCustom, ...data.properties];
+            setProperties(mergedProps);
+            localStorage.setItem("sre_properties", JSON.stringify(mergedProps));
+          } else if (localProps && localProps.length > 0) {
+            setProperties(localProps);
           } else {
             setProperties(SAMPLE_PROPERTIES);
           }
           
           if (data.users && data.users.length > 0) {
-            setRegisteredUsers(data.users);
-            localStorage.setItem("sre_registered_users", JSON.stringify(data.users));
+            const remoteIds = new Set(data.users.map((u: any) => u.id));
+            const localCustom = (localUsers || []).filter((u: any) => !remoteIds.has(u.id));
+            const mergedUsers = [...localCustom, ...data.users];
+            setRegisteredUsers(mergedUsers);
+            localStorage.setItem("sre_registered_users", JSON.stringify(mergedUsers));
+          } else if (localUsers && localUsers.length > 0) {
+            setRegisteredUsers(localUsers);
           } else {
             setRegisteredUsers(INITIAL_USERS);
           }
 
-          setInquiries(data.inquiries || []);
-          localStorage.setItem("sre_inquiries", JSON.stringify(data.inquiries || []));
+          if (data.inquiries && data.inquiries.length > 0) {
+            const remoteIds = new Set(data.inquiries.map((i: any) => i.id));
+            const localCustom = (localInquiries || []).filter((i: any) => !remoteIds.has(i.id));
+            const mergedInquiries = [...localCustom, ...data.inquiries];
+            setInquiries(mergedInquiries);
+            localStorage.setItem("sre_inquiries", JSON.stringify(mergedInquiries));
+          } else if (localInquiries) {
+            setInquiries(localInquiries);
+          } else {
+            setInquiries([]);
+          }
 
-          setNotifications(data.notifications || []);
-          localStorage.setItem("sre_notifications", JSON.stringify(data.notifications || []));
+          if (data.notifications && data.notifications.length > 0) {
+            const remoteIds = new Set(data.notifications.map((n: any) => n.id));
+            const localCustom = (localNotifs || []).filter((n: any) => !remoteIds.has(n.id));
+            const mergedNotifs = [...localCustom, ...data.notifications];
+            setNotifications(mergedNotifs);
+            localStorage.setItem("sre_notifications", JSON.stringify(mergedNotifs));
+          } else if (localNotifs) {
+            setNotifications(localNotifs);
+          } else {
+            setNotifications([]);
+          }
 
           if (data.testimonials && data.testimonials.length > 0) {
-            setTestimonials(data.testimonials);
-            localStorage.setItem("sre_testimonials", JSON.stringify(data.testimonials));
+            const remoteIds = new Set(data.testimonials.map((t: any) => t.id));
+            const localCustom = (localTestimonials || []).filter((t: any) => !remoteIds.has(t.id));
+            const mergedTestimonials = [...localCustom, ...data.testimonials];
+            setTestimonials(mergedTestimonials);
+            localStorage.setItem("sre_testimonials", JSON.stringify(mergedTestimonials));
+          } else if (localTestimonials && localTestimonials.length > 0) {
+            setTestimonials(localTestimonials);
           } else {
             setTestimonials(SAMPLE_TESTIMONIALS);
           }
@@ -472,7 +564,15 @@ export default function App() {
     // Save inquiry to backend Express server (Dual Mode)
     if (supabaseClient) {
       supabaseDirectApi.insertInquiry(newInquiry)
-        .catch(err => console.error("Error creating inquiry via direct Supabase Client:", err));
+        .catch(err => {
+          console.error("Error creating inquiry via direct Supabase Client:", err);
+          triggerToast(
+            language === "en"
+              ? "Saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
+              : "Paas baa ku badbaaday! Laakiin Supabase baa cilladoobay (Jadwallada baa maqan - ku dar badanka Setup ee sare).",
+            "info"
+          );
+        });
     } else {
       fetch("/api/inquiries", {
         method: "POST",
@@ -529,7 +629,15 @@ export default function App() {
           supabaseDirectApi.insertNotification(promoNotif)
             .catch(e => console.warn("Supabase notif register skip", e));
         })
-        .catch(err => console.error("Error creating property spec via direct Supabase Client:", err));
+        .catch(err => {
+          console.error("Error creating property spec via direct Supabase Client:", err);
+          triggerToast(
+            language === "en"
+              ? "Saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
+              : "Guryaha waa lagu daray kombiyutarkaaga! Laakiin Supabase waa ku guuldareystay (Jadwallada oo maqan awgeed - riix batoonka Setup ee sare).",
+            "info"
+          );
+        });
     } else {
       fetch("/api/properties", {
         method: "POST",
@@ -643,7 +751,15 @@ export default function App() {
     // Add registered user to server-side store (Dual Mode)
     if (supabaseClient) {
       supabaseDirectApi.insertUser(newUser)
-        .catch(err => console.error("Error registering user via direct Supabase Client:", err));
+        .catch(err => {
+          console.error("Error registering user via direct Supabase Client:", err);
+          triggerToast(
+            language === "en"
+              ? "Broker saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
+              : "Diiwaanka waa lagu daray kombiyutarkaaga! Laakiin Supabase waa ku guuldareystay (Jadwallada oo maqan awgeed).",
+            "info"
+          );
+        });
     } else {
       fetch("/api/users", {
         method: "POST",
