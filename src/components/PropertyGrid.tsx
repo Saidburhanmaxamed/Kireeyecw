@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { SlidersHorizontal, ArrowUpDown, RefreshCw, Sparkles, Building2, Home, Map, Briefcase, Gem, Car } from "lucide-react";
-import { Property, PropertyCategory } from "../types";
+import { Property, PropertyCategory, Agency } from "../types";
 import PropertyCard from "./PropertyCard";
 import { Language, translations } from "../localization";
 
@@ -17,6 +17,7 @@ interface PropertyGridProps {
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
   onClearFilters: () => void;
+  agencies?: Agency[];
   language?: Language;
   regionFilter?: string;
 }
@@ -31,6 +32,7 @@ export default function PropertyGrid({
   selectedCategory,
   setSelectedCategory,
   onClearFilters,
+  agencies = [],
   language = "en",
   regionFilter = ""
 }: PropertyGridProps) {
@@ -231,6 +233,7 @@ export default function PropertyGrid({
                   isFavorite={favorites.includes(prop.id)}
                   onToggleFavorite={onToggleFavorite}
                   onViewDetails={onViewDetails}
+                  agencies={agencies}
                   language={language}
                 />
               </div>

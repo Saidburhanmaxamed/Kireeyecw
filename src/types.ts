@@ -38,6 +38,7 @@ export interface Property {
   approved: boolean; // Needs approval by admin
   featured: boolean;
   createdAt: string;
+  agencyId?: string;
   availableDate?: string; // Optional field for rentals
   dimensions?: string;    // dimensions for Land (e.g. "15x18m")
   hasTitleDeed?: boolean; // whether Land has official ownership paperwork

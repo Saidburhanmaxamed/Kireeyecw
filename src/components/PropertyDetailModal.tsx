@@ -21,7 +21,7 @@ import {
   Send,
   Star
 } from "lucide-react";
-import { Property, Inquiry, PropertyStatus, PropertyCategory } from "../types";
+import { Property, Inquiry, PropertyStatus, PropertyCategory, Agency } from "../types";
 import { Language, translations } from "../localization";
 
 interface PropertyDetailModalProps {
@@ -30,6 +30,7 @@ interface PropertyDetailModalProps {
   isFavorite: boolean;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
   onSendInquiry: (inquiry: Omit<Inquiry, "id" | "date">) => void;
+  agencies?: Agency[];
   language?: Language;
 }
 
@@ -39,8 +40,10 @@ export default function PropertyDetailModal({
   isFavorite,
   onToggleFavorite,
   onSendInquiry,
+  agencies = [],
   language = "en"
 }: PropertyDetailModalProps) {
+  const agency = agencies.find(a => a.id === property.agencyId);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [inquiryName, setInquiryName] = useState("");
   const [inquiryEmail, setInquiryEmail] = useState("");
@@ -147,18 +150,36 @@ export default function PropertyDetailModal({
 
           {/* Instant Top Broker Contact Bar (Near details) */}
           <div className="bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/15 p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3 self-start sm:self-auto">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-display font-black text-sm uppercase shadow-sm flex-shrink-0">
-                {property.ownerName.charAt(0)}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 self-start sm:self-auto w-full sm:w-auto">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center font-display font-black text-sm uppercase shadow-sm flex-shrink-0">
+                  {property.ownerName.charAt(0)}
+                </div>
+                <div className="text-left">
+                  <span className="text-[9px] font-black text-emerald-650 dark:text-emerald-450 uppercase tracking-widest block">
+                    {language === "en" ? "VERIFIED BROKER" : "BROKER LA HUUBIYEY"}
+                  </span>
+                  <span className="font-extrabold text-slate-900 dark:text-white text-sm block">
+                    {property.ownerName}
+                  </span>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="text-[9px] font-black text-emerald-650 dark:text-emerald-450 uppercase tracking-widest block">
-                  {language === "en" ? "VERIFIED BROKER" : "BROKER LA HUUBIYEY"}
-                </span>
-                <span className="font-extrabold text-slate-900 dark:text-white text-sm block">
-                  {property.ownerName}
-                </span>
-              </div>
+
+              {agency && (
+                <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-emerald-500/20 dark:border-emerald-500/10 pt-2.5 sm:pt-0 sm:pl-4">
+                  <div className="h-9 w-9 rounded-lg overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs shrink-0">
+                    <img src={agency.logo} alt={agency.name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-[9px] font-mono font-bold text-slate-500 dark:text-slate-400 tracking-wider block uppercase">
+                      {language === "en" ? "REPRESENTING AGENCY" : "WAKAALADDA MATALEYSA"}
+                    </span>
+                    <span className="text-xs font-black text-emerald-650 dark:text-emerald-400 truncate max-w-[150px] block">
+                      {agency.name}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-2 w-full sm:w-auto">

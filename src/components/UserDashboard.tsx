@@ -31,7 +31,7 @@ import {
   Filter,
   ArrowLeft
 } from "lucide-react";
-import { Property, User as UserType, Inquiry, AppNotification, PropertyStatus, PropertyCategory, Testimonial } from "../types";
+import { Property, User as UserType, Inquiry, AppNotification, PropertyStatus, PropertyCategory, Testimonial, Agency } from "../types";
 import { SOMALI_REGIONS } from "../data";
 import { Language, translations } from "../localization";
 
@@ -47,6 +47,7 @@ interface UserDashboardProps {
   onRemoveFavorite: (id: string, e: React.MouseEvent) => void;
   onUpdateCurrentUser?: (user: UserType) => void;
   onAddTestimonial?: (testimonial: Omit<Testimonial, "id">) => void;
+  agencies?: Agency[];
   language?: Language;
 }
 
@@ -73,6 +74,7 @@ export default function UserDashboard({
   onRemoveFavorite,
   onUpdateCurrentUser,
   onAddTestimonial,
+  agencies = [],
   language = "en"
 }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<"listings" | "add-form" | "inquiries" | "favorites" | "profile">("listings");
@@ -162,6 +164,7 @@ export default function UserDashboard({
   const [formImageIndex, setFormImageIndex] = useState<number>(0);
   const [successFeedback, setSuccessFeedback] = useState("");
   const [availableDate, setAvailableDate] = useState("");
+  const [agencyId, setAgencyId] = useState("");
 
   // Category specific fields
   const [dimensions, setDimensions] = useState("");
@@ -440,6 +443,7 @@ export default function UserDashboard({
     setFormImageIndex(0);
     setPropFileUploadName("");
     setAvailableDate(prop.availableDate || "");
+    setAgencyId(prop.agencyId || "");
     setActiveTab("add-form");
   };
 
@@ -470,6 +474,7 @@ export default function UserDashboard({
       images: chosenImages,
       featured: false,
       availableDate: availableDate ? availableDate : null,
+      agencyId: agencyId || undefined,
       // Custom category specific attributes
       dimensions: category === PropertyCategory.LandSale ? dimensions : undefined,
       hasTitleDeed: category === PropertyCategory.LandSale ? hasTitleDeed : undefined,
@@ -507,6 +512,7 @@ export default function UserDashboard({
       setPrice("");
       setLocation("");
       setAvailableDate("");
+      setAgencyId("");
       setDimensions("");
       setHasTitleDeed(false);
       setZoning("Residential");
@@ -1227,6 +1233,27 @@ export default function UserDashboard({
                       className="w-full bg-white dark:bg-slate-950 px-4 py-2.5 rounded-xl border text-xs font-mono font-extrabold outline-none cursor-pointer transition-all focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/10 border-slate-200 dark:border-slate-800/80 hover:border-emerald-350 text-emerald-600 dark:text-emerald-400"
                       style={{ colorScheme: typeof document !== "undefined" && document.documentElement.classList.contains("dark") ? "dark" : "light" }}
                     />
+                  </div>
+
+                  {/* Partnering Agency Dropdown */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-emerald-750 dark:text-emerald-400 uppercase tracking-wider block text-left mb-1">
+                      {language === "en" ? "Real Estate Agency *" : "Wakaaladda Guryaha *"}
+                    </label>
+                    <select
+                      value={agencyId}
+                      onChange={(e) => setAgencyId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-950 px-4 py-2.5 rounded-xl border text-xs text-slate-900 dark:text-slate-100 font-bold outline-none cursor-pointer transition-all focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/10 border-slate-200 dark:border-slate-800/80 hover:border-emerald-300 dark:hover:border-emerald-800"
+                    >
+                      <option value="">
+                        {language === "en" ? "-- Independent (No Agency) --" : "-- Mid Madaxbanaan (Wakaalad la'aan) --"}
+                      </option>
+                      {agencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name} ({agency.location})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* CONDITIONAL SUB-FIELDS IN THE SAME FLAT GRID */}

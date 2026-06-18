@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS properties (
   approved BOOLEAN DEFAULT TRUE,
   featured BOOLEAN DEFAULT FALSE,
   "createdAt" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  "agencyId" TEXT,
   "availableDate" TEXT,
   dimensions TEXT,
   "hasTitleDeed" BOOLEAN DEFAULT FALSE,

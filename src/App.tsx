@@ -1117,6 +1117,7 @@ export default function App() {
               onRemoveFavorite={handleToggleFavorite}
               onUpdateCurrentUser={handleUpdateCurrentUser}
               onAddTestimonial={handleAddTestimonial}
+              agencies={agencies}
               language={language}
             />
           </div>
@@ -1166,6 +1167,7 @@ export default function App() {
                     selectedCategory={selectedCategory}
                     setSelectedCategory={setSelectedCategory}
                     onClearFilters={handleResetFilters}
+                    agencies={agencies}
                     language={language}
                     regionFilter={searchFilters?.region || ""}
                   />
@@ -1216,6 +1218,7 @@ export default function App() {
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   onClearFilters={handleResetFilters}
+                  agencies={agencies}
                   language={language}
                   regionFilter={searchFilters?.region || ""}
                 />
@@ -1245,6 +1248,7 @@ export default function App() {
           isFavorite={favorites.includes(selectedProperty.id)}
           onToggleFavorite={handleToggleFavorite}
           onSendInquiry={handleSendInquiry}
+          agencies={agencies}
           language={language}
         />
       )}

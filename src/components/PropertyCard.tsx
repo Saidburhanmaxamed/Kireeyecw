@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Heart, MapPin, Bed, Bath, Maximize2, Tag, CheckCircle } from "lucide-react";
-import { Property, PropertyStatus, PropertyCategory } from "../types";
+import { Property, PropertyStatus, PropertyCategory, Agency } from "../types";
 import { Language } from "../localization";
 
 interface PropertyCardProps {
@@ -13,6 +13,7 @@ interface PropertyCardProps {
   isFavorite: boolean;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
   onViewDetails: (id: string) => void;
+  agencies?: Agency[];
   language?: Language;
 }
 
@@ -21,8 +22,11 @@ export default function PropertyCard({
   isFavorite,
   onToggleFavorite,
   onViewDetails,
+  agencies = [],
   language = "en"
 }: PropertyCardProps) {
+  const agency = agencies.find(a => a.id === property.agencyId);
+
   // Format numbers nicely, e.g. $450,000 or $1,550/mo
   const formattedPrice = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -91,6 +95,18 @@ export default function PropertyCard({
         <span className="absolute bottom-4 left-4 z-10 py-1 px-2.5 rounded bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-wider">
           {getCategoryLabel(property.category)}
         </span>
+
+        {/* Onboarded Agency Indicator Overlay */}
+        {agency && (
+          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 backdrop-blur-md rounded-lg border border-slate-800 shadow-sm">
+            <div className="h-4.5 w-4.5 rounded overflow-hidden bg-white shrink-0 border border-slate-700/50">
+              <img src={agency.logo} alt={agency.name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+            </div>
+            <span className="text-[9px] font-mono font-bold text-slate-100 tracking-tight uppercase max-w-[85px] truncate">
+              {agency.name}
+            </span>
+          </div>
+        )}
 
         {/* Interactive Favorite Icon Overlay */}
         <button
