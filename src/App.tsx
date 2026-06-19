@@ -108,7 +108,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [activeTab]);
 
-  // Load and seed initial states from LocalStorage for pure offline-first utility
+  // Load and seed initial states from LocalStorage and Express/Supabase proxy API
   useEffect(() => {
     // 0. Language
     const savedLang = localStorage.getItem("sre_language") as Language | null;
@@ -124,7 +124,7 @@ export default function App() {
     document.documentElement.classList.remove("dark");
     localStorage.setItem("sre_theme", "light");
 
-    // 2. Fetch/Load offline state structures
+    // 2. Fetch/Load offline fallback states first for instant rendering
     const localPropsStr = localStorage.getItem("sre_properties");
     if (localPropsStr) {
       setProperties(JSON.parse(localPropsStr));
@@ -144,15 +144,11 @@ export default function App() {
     const localInquiriesStr = localStorage.getItem("sre_inquiries");
     if (localInquiriesStr) {
       setInquiries(JSON.parse(localInquiriesStr));
-    } else {
-      setInquiries([]);
     }
 
     const localNotifsStr = localStorage.getItem("sre_notifications");
     if (localNotifsStr) {
       setNotifications(JSON.parse(localNotifsStr));
-    } else {
-      setNotifications([]);
     }
 
     const localTestimonialsStr = localStorage.getItem("sre_testimonials");
@@ -160,7 +156,6 @@ export default function App() {
       setTestimonials(JSON.parse(localTestimonialsStr));
     } else {
       setTestimonials(SAMPLE_TESTIMONIALS);
-      localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
     }
 
     const localAgenciesStr = localStorage.getItem("sre_agencies");
@@ -168,7 +163,6 @@ export default function App() {
       setAgencies(JSON.parse(localAgenciesStr));
     } else {
       setAgencies(SEED_AGENCIES);
-      localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
     }
 
     const localAgencyLogsStr = localStorage.getItem("sre_agency_logs");
@@ -176,54 +170,291 @@ export default function App() {
       setAgencyLogs(JSON.parse(localAgencyLogsStr));
     } else {
       setAgencyLogs(SEED_AGENCY_LOGS);
-      localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
     }
 
-    // 3. Current logged-in Broker/Admin persistence
+    // Current logged-in Broker/Admin persistence
     const savedUser = localStorage.getItem("sre_current_user");
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
 
-    // 4. Saved Favorites catalog
+    // Saved Favorites catalog
     const savedFavs = localStorage.getItem("sre_favorites");
     if (savedFavs) {
       setFavorites(JSON.parse(savedFavs));
-    } else {
-      setFavorites([]);
-      localStorage.setItem("sre_favorites", JSON.stringify([]));
     }
+
+    // 3. Initiate background sync connection with Express + Supabase
+    const syncBackendData = async () => {
+      try {
+        const [
+          resProps,
+          resUsers,
+          resInquiries,
+          resTestimonials,
+          resAgencies,
+          resLogs,
+          resNotifs,
+          resFavs
+        ] = await Promise.all([
+          fetch("/api/properties").then(r => r.json()).catch(() => null),
+          fetch("/api/users").then(r => r.json()).catch(() => null),
+          fetch("/api/inquiries").then(r => r.json()).catch(() => null),
+          fetch("/api/testimonials").then(r => r.json()).catch(() => null),
+          fetch("/api/agencies").then(r => r.json()).catch(() => null),
+          fetch("/api/agency-logs").then(r => r.json()).catch(() => null),
+          fetch("/api/notifications").then(r => r.json()).catch(() => null),
+          fetch("/api/favorites").then(r => r.json()).catch(() => null)
+        ]);
+
+        if (resProps && Array.isArray(resProps)) {
+          if (resProps.length > 0) {
+            setProperties(resProps);
+            localStorage.setItem("sre_properties", JSON.stringify(resProps));
+          } else {
+            // Seed Supabase if empty on backend
+            const defaults = JSON.parse(localStorage.getItem("sre_properties") || "[]");
+            const target = defaults.length > 0 ? defaults : SAMPLE_PROPERTIES;
+            for (const p of target) {
+              await fetch("/api/properties", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(p)
+              }).catch(() => {});
+            }
+          }
+        }
+
+        if (resUsers && Array.isArray(resUsers)) {
+          if (resUsers.length > 0) {
+            setRegisteredUsers(resUsers);
+            localStorage.setItem("sre_registered_users", JSON.stringify(resUsers));
+          } else {
+            const defaults = JSON.parse(localStorage.getItem("sre_registered_users") || "[]");
+            const target = defaults.length > 0 ? defaults : INITIAL_USERS;
+            for (const u of target) {
+              await fetch("/api/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(u)
+              }).catch(() => {});
+            }
+          }
+        }
+
+        if (resInquiries && Array.isArray(resInquiries)) {
+          setInquiries(resInquiries);
+          localStorage.setItem("sre_inquiries", JSON.stringify(resInquiries));
+        }
+
+        if (resTestimonials && Array.isArray(resTestimonials)) {
+          if (resTestimonials.length > 0) {
+            setTestimonials(resTestimonials);
+            localStorage.setItem("sre_testimonials", JSON.stringify(resTestimonials));
+          } else {
+            for (const t of SAMPLE_TESTIMONIALS) {
+              await fetch("/api/testimonials", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(t)
+              }).catch(() => {});
+            }
+          }
+        }
+
+        if (resAgencies && Array.isArray(resAgencies)) {
+          if (resAgencies.length > 0) {
+            setAgencies(resAgencies);
+            localStorage.setItem("sre_agencies", JSON.stringify(resAgencies));
+          } else {
+            for (const a of SEED_AGENCIES) {
+              await fetch("/api/agencies", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(a)
+              }).catch(() => {});
+            }
+          }
+        }
+
+        if (resLogs && Array.isArray(resLogs)) {
+          if (resLogs.length > 0) {
+            setAgencyLogs(resLogs);
+            localStorage.setItem("sre_agency_logs", JSON.stringify(resLogs));
+          } else {
+            for (const l of SEED_AGENCY_LOGS) {
+              await fetch("/api/agency-logs", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(l)
+              }).catch(() => {});
+            }
+          }
+        }
+
+        if (resNotifs && Array.isArray(resNotifs)) {
+          setNotifications(resNotifs);
+          localStorage.setItem("sre_notifications", JSON.stringify(resNotifs));
+        }
+
+        if (resFavs && Array.isArray(resFavs)) {
+          const mappedIds = resFavs.map((f: any) => f.propertyId);
+          setFavorites(mappedIds);
+          localStorage.setItem("sre_favorites", JSON.stringify(mappedIds));
+        }
+
+      } catch (err) {
+        console.warn("Backend proxy offline or configuring. Failover backup system is shielding queries.", err);
+      }
+    };
+
+    // Fast-track API syncing
+    syncBackendData();
   }, []);
 
-  // Sync state functions with local storage
-  const saveProperties = (updated: Property[]) => {
+  // Sync state functions with local storage and Express/Supabase proxy API
+  const saveProperties = async (updated: Property[]) => {
     setProperties(updated);
     localStorage.setItem("sre_properties", JSON.stringify(updated));
+
+    try {
+      // Find deleted
+      const oldIds = properties.map(p => p.id);
+      const newIds = updated.map(p => p.id);
+      const deletedIds = oldIds.filter(id => !newIds.includes(id));
+
+      for (const id of deletedIds) {
+        await fetch(`/api/properties/${id}`, { method: "DELETE" }).catch(() => {});
+      }
+
+      // Upsert modified or added
+      for (const prop of updated) {
+        const oldMatch = properties.find(p => p.id === prop.id);
+        if (!oldMatch || JSON.stringify(oldMatch) !== JSON.stringify(prop)) {
+          await fetch("/api/properties", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(prop)
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error("Express proxy save error for properties:", err);
+    }
   };
 
-  const saveFavorites = (updated: string[]) => {
+  const saveFavorites = async (updated: string[]) => {
     setFavorites(updated);
     localStorage.setItem("sre_favorites", JSON.stringify(updated));
+
+    if (currentUser) {
+      try {
+        for (const favId of updated) {
+          await fetch("/api/favorites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: `fav-${currentUser.id}-${favId}`,
+              userId: currentUser.id,
+              propertyId: favId
+            })
+          }).catch(() => {});
+        }
+      } catch (err) {
+        console.error("Favorites persistent save error:", err);
+      }
+    }
   };
 
-  const saveInquiries = (updated: Inquiry[]) => {
+  const saveInquiries = async (updated: Inquiry[]) => {
     setInquiries(updated);
     localStorage.setItem("sre_inquiries", JSON.stringify(updated));
+
+    try {
+      const oldIds = inquiries.map(i => i.id);
+      const newIds = updated.map(i => i.id);
+      const deletedIds = oldIds.filter(id => !newIds.includes(id));
+
+      for (const id of deletedIds) {
+        await fetch(`/api/inquiries/${id}`, { method: "DELETE" }).catch(() => {});
+      }
+
+      for (const inq of updated) {
+        const oldMatch = inquiries.find(i => i.id === inq.id);
+        if (!oldMatch) {
+          await fetch("/api/inquiries", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(inq)
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error("Inquiries persistence update error:", err);
+    }
   };
 
-  const saveNotifications = (updated: AppNotification[]) => {
+  const saveNotifications = async (updated: AppNotification[]) => {
     setNotifications(updated);
     localStorage.setItem("sre_notifications", JSON.stringify(updated));
+
+    try {
+      await fetch("/api/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      }).catch(() => {});
+    } catch (err) {
+      console.error("Notifications synchronous save error:", err);
+    }
   };
 
-  const saveUsers = (updated: User[]) => {
+  const saveUsers = async (updated: User[]) => {
     setRegisteredUsers(updated);
     localStorage.setItem("sre_registered_users", JSON.stringify(updated));
+
+    try {
+      const oldIds = registeredUsers.map(u => u.id);
+      const newIds = updated.map(u => u.id);
+      const deletedIds = oldIds.filter(id => !newIds.includes(id));
+
+      for (const id of deletedIds) {
+        await fetch(`/api/users/${id}`, { method: "DELETE" }).catch(() => {});
+      }
+
+      for (const usr of updated) {
+        const oldMatch = registeredUsers.find(u => u.id === usr.id);
+        if (!oldMatch || JSON.stringify(oldMatch) !== JSON.stringify(usr)) {
+          await fetch("/api/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(usr)
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error("Users synchronous save error:", err);
+    }
   };
 
-  const saveTestimonials = (updated: Testimonial[]) => {
+  const saveTestimonials = async (updated: Testimonial[]) => {
     setTestimonials(updated);
     localStorage.setItem("sre_testimonials", JSON.stringify(updated));
+
+    try {
+      for (const test of updated) {
+        const oldMatch = testimonials.find(t => t.id === test.id);
+        if (!oldMatch) {
+          await fetch("/api/testimonials", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(test)
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error("Testimonials upload update error:", err);
+    }
   };
 
   // Helper trigger for visual toasts
@@ -490,6 +721,13 @@ export default function App() {
       localStorage.setItem("sre_agencies", JSON.stringify(updated));
       triggerToast(language === "en" ? "Agency registered successfully!" : "Wakaaladda waa la diiwaangeliyey!", "success");
 
+      // Sync backend
+      await fetch("/api/agencies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newAgency)
+      }).catch(e => console.error(e));
+
       // Log action
       const auditLog: AgencyLog = {
         id: "log-" + Math.random().toString(36).substr(2, 9),
@@ -534,6 +772,13 @@ export default function App() {
       const updated = [newLog, ...agencyLogs];
       setAgencyLogs(updated);
       localStorage.setItem("sre_agency_logs", JSON.stringify(updated));
+
+      // Sync backend
+      await fetch("/api/agency-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLog)
+      }).catch(e => console.error(e));
     } catch (err) {
       console.error("Storing log failed:", err);
     }

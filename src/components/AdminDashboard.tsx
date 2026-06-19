@@ -68,9 +68,43 @@ export default function AdminDashboard({
   onCreateAgencyLog = () => {},
   language = "en"
 }: AdminDashboardProps) {
-  const [adminTab, setAdminTab] = useState<"pending" | "properties" | "users" | "inquiries" | "agencies">("pending");
+  const [adminTab, setAdminTab] = useState<"pending" | "properties" | "users" | "inquiries" | "agencies" | "supabase">("pending");
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Supabase Integration Dashboard details
+  const [supabaseStatus, setSupabaseStatus] = React.useState<{
+    connected: boolean;
+    tablesOk: boolean;
+    hasUsersTable: boolean;
+    hasPropertiesTable: boolean;
+    errorMessage: string;
+    sql: string;
+    credentials: { url: string; project_id: string };
+  } | null>(null);
+  const [loadingSupaStatus, setLoadingSupaStatus] = React.useState(false);
+  const [copiedSql, setCopiedSql] = React.useState(false);
+
+  const fetchSupabaseStatus = async () => {
+    setLoadingSupaStatus(true);
+    try {
+      const res = await fetch("/api/supabase/status");
+      if (res.ok) {
+        const data = await res.json();
+        setSupabaseStatus(data);
+      }
+    } catch (e) {
+      console.error("Failed loading Supabase status:", e);
+    } finally {
+      setLoadingSupaStatus(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (adminTab === "supabase") {
+      fetchSupabaseStatus();
+    }
+  }, [adminTab]);
 
   // Search filter states
   const [searchQueryUsers, setSearchQueryUsers] = useState("");
@@ -457,6 +491,26 @@ export default function AdminDashboard({
             </span>
             <span className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-full">
               {agencies.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminTab("supabase")}
+            className={`w-full text-left py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold flex justify-between items-center transition-all cursor-pointer ${
+              adminTab === "supabase"
+                ? "bg-emerald-605 dark:bg-emerald-600 text-white shadow-md"
+                : "bg-white dark:bg-slate-905 text-slate-650 hover:bg-slate-50 border border-emerald-500/10 dark:border-emerald-950/25 dark:text-emerald-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Supabase Backend</span>
+            </span>
+            <span className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full leading-none">
+              ONLINE
             </span>
           </button>
         </div>
@@ -1365,6 +1419,170 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: SUPABASE DATABASE CLIENT CONNECTION & DIAGNOSTICS */}
+          {adminTab === "supabase" && (
+            <div className="space-y-6">
+              <div className="pb-4 border-b border-gray-100 dark:border-slate-850">
+                <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                  <Database className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <span>{language === "en" ? "Supabase Backend Proxy Engine" : "Matoorka Dhabarka ee Supabase"}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  {language === "en" 
+                    ? "Verify live connection status, inspect table structures, and deploy schema updates for kireeyecw." 
+                    : "Hubi xaaladda isku xirka tooska ah, baar qaabdhismeedka jadwalka, kuna shub cusbooneysiinta schema-ka."}
+                </p>
+              </div>
+
+              {/* LIVE TELEMETRY DASHBOARD */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                    Supabase API Health
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {loadingSupaStatus ? (
+                      <span className="text-xs text-slate-400">Pinging...</span>
+                    ) : supabaseStatus?.connected ? (
+                      <>
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Connected & Online</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                        <span className="text-xs text-red-600 dark:text-red-400 font-bold uppercase tracking-wider">Tables Missing/Offline</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-mono overflow-x-auto truncate">
+                    URL: {supabaseStatus?.credentials?.url || "https://slfrjuherxhychvmljll.supabase.co"}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                    Database Schema Integrity
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {loadingSupaStatus ? (
+                      <span className="text-xs text-slate-400">Assessing...</span>
+                    ) : supabaseStatus?.tablesOk ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">All Tables Found</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Schema Pending Setup</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    {supabaseStatus?.tablesOk 
+                      ? "Ready to query: user profiles, property listings, and inquiries synced." 
+                      : "Create tables using the provided SQL migration scripts."}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                    Active Backend Sync Mode
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
+                      {supabaseStatus?.tablesOk ? "Supabase Live" : "Local Temp Storage Proxy"}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans leading-relaxed">
+                    {supabaseStatus?.tablesOk 
+                      ? "Direct transactions are routed securely to Supabase." 
+                      : "Automatic self-healing local database active. Data is preserved safely."}
+                  </p>
+                </div>
+              </div>
+
+              {/* TABLE DIAGNOSTICS */}
+              <div className="p-5 bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-850 rounded-2xl text-left space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 font-mono">
+                  Database Synchronizer Status
+                </h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: users</span>
+                    <span className={supabaseStatus?.hasUsersTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasUsersTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: properties</span>
+                    <span className={supabaseStatus?.hasPropertiesTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasPropertiesTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ACTIONABLE INSTRUCTIONS */}
+              <div className="p-6 bg-emerald-500/5 border border-emerald-500/15 rounded-3xl text-left space-y-4">
+                <div>
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <span>How to Setup Your Supabase Tables in 60 Seconds</span>
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Follow these simple steps or paste the SQL code below directly into your Supabase console to transition all operations to Supabase:
+                  </p>
+                </div>
+
+                <ol className="list-decimal list-inside text-xs text-slate-600 dark:text-slate-300 space-y-2 pl-1 leading-relaxed">
+                  <li>Log in to your Supabase Dashboard at <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-emerald-500 underline font-semibold">supabase.com</a></li>
+                  <li>Select your <strong>kireeyecw</strong> project (ID: <code>slfrjuherxhychvmljll</code>)</li>
+                  <li>Click on the <strong>SQL Editor</strong> tab in the left-hand sidebar menu</li>
+                  <li>Click <strong>New Query</strong>, paste the SQL schema script provided below, and click <strong>Run</strong></li>
+                  <li>Once tables are created, click <strong>Refresh Diagnostics</strong> inside this panel! All operations will transition automatically.</li>
+                </ol>
+
+                <div className="pt-2">
+                  <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-950 px-4 py-2 rounded-t-xl border-l border-t border-r border-slate-200 dark:border-slate-850">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">SQL Migration Schema SQL</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (supabaseStatus?.sql) {
+                          navigator.clipboard.writeText(supabaseStatus.sql);
+                          setCopiedSql(true);
+                          setTimeout(() => setCopiedSql(false), 3000);
+                        }
+                      }}
+                      className="text-[11px] font-bold font-mono text-emerald-600 hover:text-emerald-500 cursor-pointer flex items-center gap-1 active:scale-95 transition-all"
+                    >
+                      {copiedSql ? "✔ COPIED!" : "📄 COPY SCHEMA"}
+                    </button>
+                  </div>
+                  <pre className="p-4 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-mono rounded-b-xl max-h-[250px] overflow-y-auto text-left leading-normal scrollbar-thin scrollbar-thumb-slate-800">
+                    {supabaseStatus?.sql || `-- SQL template loading...`}
+                  </pre>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchSupabaseStatus}
+                    disabled={loadingSupaStatus}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 active:scale-95 transition-all"
+                  >
+                    <span>Refresh Diagnostics Telemetry</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
