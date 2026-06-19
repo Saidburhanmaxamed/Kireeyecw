@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { X, Lock, Mail, User, Phone, Briefcase, Unlock, CheckCircle, ShieldAlert, Sparkles, KeyRound } from "lucide-react";
 import { User as UserType } from "../types";
 import { Language } from "../localization";
+import { supabase } from "../supabase";
 
 interface AuthModalProps {
   onClose: () => void;
@@ -34,7 +35,7 @@ export default function AuthModal({
   const [showAdminField, setShowAdminField] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
@@ -65,6 +66,7 @@ export default function AuthModal({
         role: "admin",
         phone: "+252615555555",
         password: "Maalinle555",
+        approved: true,
         createdAt: new Date("2026-06-08").toISOString()
       },
       {
@@ -75,6 +77,7 @@ export default function AuthModal({
         role: "agent",
         phone: "+252615123456",
         password: "somali123",
+        approved: true,
         createdAt: new Date("2026-03-15").toISOString()
       },
       {
@@ -85,6 +88,7 @@ export default function AuthModal({
         role: "agent",
         phone: "+252634987654",
         password: "somali123",
+        approved: true,
         createdAt: new Date("2026-04-20").toISOString()
       }
     ];
@@ -128,6 +132,70 @@ export default function AuthModal({
       }
     }
 
+    // Resolve username to actual email for Supabase Auth checking
+    let lookupEmail = email.trim();
+    const foundUserByName = savedUsers.find(
+      (u) => u.username?.toLowerCase() === email.toLowerCase().trim()
+    );
+    if (foundUserByName) {
+      lookupEmail = foundUserByName.email;
+    }
+
+    // 1. ATTEMPT REAL SUPABASE AUTH CLIENT METHOD FIRST
+    if (lookupEmail.includes("@")) {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: lookupEmail,
+          password: password.trim()
+        });
+
+        if (!authError && authData?.user) {
+          console.log("[Supabase Auth] Secure login accomplished:", authData.user.email);
+          let matchedUser = savedUsers.find((u) => u.email.toLowerCase() === lookupEmail.toLowerCase());
+          
+          if (!matchedUser) {
+            // Self-heal profile from user metadata if missing in collection
+            matchedUser = {
+              id: authData.user.id,
+              name: authData.user.user_metadata?.name || authData.user.email?.split("@")[0] || "Supabase Broker",
+              email: authData.user.email || lookupEmail,
+              username: authData.user.email?.toLowerCase().split("@")[0],
+              role: authData.user.user_metadata?.role || loginType,
+              phone: authData.user.user_metadata?.phone || "+252610000000",
+              approved: authData.user.user_metadata?.approved !== false,
+              createdAt: authData.user.created_at || new Date().toISOString()
+            };
+            
+            // Sync to list & database
+            savedUsers.push(matchedUser);
+            localStorage.setItem("sre_registered_users", JSON.stringify(savedUsers));
+            await fetch("/api/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(matchedUser)
+            }).catch(() => {});
+          }
+
+          setFeedback({
+            type: "success",
+            msg: `✔ Gudbiye Sugan! Xaqiijintaada waxaa si toos ah u hubiyey Supabase Auth.`
+          });
+
+          setTimeout(() => {
+            localStorage.setItem("sre_current_user", JSON.stringify(matchedUser));
+            onLoginSuccess(matchedUser!);
+            onClose();
+          }, 1200);
+          return;
+        } else {
+          console.warn("[Supabase Auth] Info fallback. Performing secure local storage verify.");
+        }
+      } catch (authException) {
+        console.error("[Supabase Auth] Client exception during authentication:", authException);
+      }
+    }
+
+    // 2. FALLBACK/OFFLINE-FIRST HYBRID LOCAL CHECK (Supports seed data & instant onboarding)
     const matchedUser = savedUsers.find((u) => {
       const searchVal = email.toLowerCase().trim();
       if (loginType === "admin") {
@@ -192,7 +260,7 @@ export default function AuthModal({
     }, 1200);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !name || !phone) {
       setFeedback({
@@ -203,9 +271,35 @@ export default function AuthModal({
     }
 
     const assignedRole = role; // "agent" or "buyer" as selected
+    let generatedUserId = "registered-" + Math.random().toString(36).substr(2, 9);
+
+    // 1. ATTEMPT SECURE SUPABASE AUTH SIGNUP
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+        options: {
+          data: {
+            name: name.trim(),
+            phone: phone.trim(),
+            role: assignedRole,
+            approved: assignedRole !== "agent"
+          }
+        }
+      });
+
+      if (!authError && authData?.user) {
+        console.log("[Supabase Auth] Successfully registered secure profile:", authData.user.id);
+        generatedUserId = authData.user.id;
+      } else {
+        console.warn("[Supabase Auth] Info fallback. Storing locally as failover:", authError?.message);
+      }
+    } catch (authException) {
+      console.error("[Supabase Auth] Sign up exception:", authException);
+    }
 
     const newRegister: UserType & { password?: string, username?: string } = {
-      id: "registered-" + Math.random().toString(36).substr(2, 9),
+      id: generatedUserId,
       name,
       email: email.trim(),
       username: email.toLowerCase().trim().split("@")[0], // auto-generate username for easier login
@@ -232,6 +326,13 @@ export default function AuthModal({
 
     savedUsers.push(newRegister);
     localStorage.setItem("sre_registered_users", JSON.stringify(savedUsers));
+
+    // Async sync to the server's Supabase PostgreSQL proxy endpoint for users Table!
+    await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newRegister)
+    }).catch(e => console.error("Database user table synchronization error:", e));
 
     // Sign in instantly
     localStorage.setItem("sre_current_user", JSON.stringify(newRegister));
