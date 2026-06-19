@@ -33,6 +33,7 @@ import ContactPage from "./components/ContactPage";
 import Footer from "./components/Footer";
 import { Info, Bell, CheckCircle2, Heart, MessageSquare, Sparkles } from "lucide-react";
 import { Language } from "./localization";
+import { supabase } from "./supabase";
 
 
 // Initial seed users
@@ -177,6 +178,31 @@ export default function App() {
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
+
+    // Try to auto-connect with active Supabase browser/auth session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && !localStorage.getItem("sre_current_user")) {
+        const savedUsersStr = localStorage.getItem("sre_registered_users") || "[]";
+        const savedUsers: User[] = JSON.parse(savedUsersStr);
+        let matchedUser = savedUsers.find(u => u.email.toLowerCase() === session.user.email?.toLowerCase());
+        if (!matchedUser) {
+          matchedUser = {
+            id: session.user.id,
+            name: session.user.user_metadata?.name || session.user.email?.split("@")[0] || "Supabase Broker",
+            email: session.user.email || "",
+            username: session.user.email?.toLowerCase().split("@")[0],
+            role: session.user.user_metadata?.role || "buyer",
+            phone: session.user.user_metadata?.phone || "+252610000000",
+            approved: session.user.user_metadata?.approved !== false,
+            createdAt: session.user.created_at || new Date().toISOString()
+          };
+        }
+        setCurrentUser(matchedUser);
+        localStorage.setItem("sre_current_user", JSON.stringify(matchedUser));
+      }
+    }).catch(err => {
+      console.warn("Supabase auth check error during boot sequence:", err);
+    });
 
     // Saved Favorites catalog
     const savedFavs = localStorage.getItem("sre_favorites");
@@ -524,6 +550,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem("sre_current_user");
+    supabase.auth.signOut().catch(() => {});
     triggerToast("Signed out successfully from portal", "info");
     setActiveTab("home");
   };

@@ -5,10 +5,104 @@ import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
 
 // Configuration for Supabase SDK matching the user's details
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://slfrjuherxhychvmljll.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 
-                     process.env.VITE_SUPABASE_ANON_KEY || 
-                     "sb_publishable_ZjEu1jPwiMY9LP31rawY2g_L1OSvTAJ";
+function sanitizeUrl(url: any): string {
+  if (typeof url !== 'string') return "";
+  let trimmed = url.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+  // Strip trailing '/rest/v1/' or '/rest/v1' or custom trailing slashes
+  trimmed = trimmed.replace(/\/rest\/v1\/?$/i, "");
+  trimmed = trimmed.replace(/\/+$/, "");
+  return trimmed;
+}
+
+function getValidSupabaseUrl(envUrl: any, defaultUrl: string): string {
+  const sanitized = sanitizeUrl(envUrl);
+  if (sanitized && /^https?:\/\//i.test(sanitized)) {
+    return sanitized;
+  }
+  return sanitizeUrl(defaultUrl);
+}
+
+function sanitizeKey(key: any): string {
+  if (typeof key !== 'string') return "";
+  let trimmed = key.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function safeDecodeBase64(str: string): string {
+  try {
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(str, "base64").toString("utf8");
+    }
+    let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4) {
+      base64 += "=";
+    }
+    return JSON.parse(decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    ));
+  } catch (e) {
+    try {
+      if (typeof Buffer !== "undefined") {
+        return Buffer.from(str, "base64").toString("utf8");
+      }
+      return atob(str);
+    } catch (err) {
+      return "";
+    }
+  }
+}
+
+function parseSupabaseKey(key: any): { ref?: string; role?: string } | null {
+  if (typeof key !== 'string') return null;
+  const parts = key.trim().split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payloadStr = safeDecodeBase64(parts[1]);
+    if (!payloadStr) return null;
+    const payload = typeof payloadStr === 'string' ? JSON.parse(payloadStr) : payloadStr;
+    if (payload && payload.iss === 'supabase') {
+      return { ref: payload.ref, role: payload.role };
+    }
+  } catch (e) {}
+  return null;
+}
+
+const DEFAULT_URL = "https://slfrjuherxhychvmljll.supabase.co";
+const DEFAULT_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsZnJqdWhlcnhoeWNodm1samxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NjY3OTEsImV4cCI6MjA5NzQ0Mjc5MX0.O03KF9Tg-6TvDRC1l4-u-gIgzuFhYZeFJASEBXIWPDs";
+
+function resolveConfig() {
+  const candidateKeys = [
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.VITE_SUPABASE_ANON_KEY,
+    DEFAULT_KEY
+  ];
+
+  for (const raw of candidateKeys) {
+    const key = sanitizeKey(raw);
+    const parsed = parseSupabaseKey(key);
+    if (parsed && parsed.ref) {
+      const url = `https://${parsed.ref}.supabase.co`;
+      return { url, key };
+    }
+  }
+
+  const envUrl = getValidSupabaseUrl(process.env.SUPABASE_URL, DEFAULT_URL);
+  const tempKey = sanitizeKey(process.env.SUPABASE_SERVICE_ROLE_KEY) || 
+                  sanitizeKey(process.env.VITE_SUPABASE_ANON_KEY) || 
+                  DEFAULT_KEY;
+  return { url: envUrl, key: tempKey };
+}
+
+const { url: SUPABASE_URL, key: SUPABASE_KEY } = resolveConfig();
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -93,24 +187,42 @@ const writeLocalStore = (data: any) => {
 // Supabase Connection Status Testing API
 app.get("/api/supabase/status", async (req: Request, res: Response) => {
   let isConnected = false;
-  let hasPropertiesTable = false;
   let hasUsersTable = false;
+  let hasPropertiesTable = false;
+  let hasInquiriesTable = false;
+  let hasTestimonialsTable = false;
+  let hasAgenciesTable = false;
+  let hasAgencyLogsTable = false;
+  let hasNotificationsTable = false;
+  let hasFavoritesTable = false;
   let errorMessage = "";
 
   try {
-    // Attempt ping-testing the users table
-    const { error: userErr } = await supabase.from("users").select("count").limit(1);
-    if (!userErr) {
-      hasUsersTable = true;
-    } else {
-      errorMessage = userErr.message;
-    }
+    // Attempt ping-testing tables
+    const userRes = await supabase.from("users").select("count").limit(1);
+    hasUsersTable = !userRes.error;
+    if (userRes.error) errorMessage = userRes.error.message;
 
-    // Attempt ping-testing the properties table
-    const { error: propErr } = await supabase.from("properties").select("count").limit(1);
-    if (!propErr) {
-      hasPropertiesTable = true;
-    }
+    const propRes = await supabase.from("properties").select("count").limit(1);
+    hasPropertiesTable = !propRes.error;
+
+    const inqRes = await supabase.from("inquiries").select("count").limit(1);
+    hasInquiriesTable = !inqRes.error;
+
+    const testRes = await supabase.from("testimonials").select("count").limit(1);
+    hasTestimonialsTable = !testRes.error;
+
+    const agencyRes = await supabase.from("agencies").select("count").limit(1);
+    hasAgenciesTable = !agencyRes.error;
+
+    const logRes = await supabase.from("agency_logs").select("count").limit(1);
+    hasAgencyLogsTable = !logRes.error;
+
+    const notifRes = await supabase.from("notifications").select("count").limit(1);
+    hasNotificationsTable = !notifRes.error;
+
+    const favRes = await supabase.from("favorites").select("count").limit(1);
+    hasFavoritesTable = !favRes.error;
 
     isConnected = true;
   } catch (err: any) {
@@ -215,6 +327,24 @@ CREATE TABLE IF NOT EXISTS agency_logs (
   "targetId" TEXT,
   details TEXT,
   "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'general',
+  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  read BOOLEAN DEFAULT FALSE
+);
+
+-- Create Favorites Table
+CREATE TABLE IF NOT EXISTS favorites (
+  id TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL,
+  "propertyId" TEXT NOT NULL,
+  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );`;
 
   res.json({
@@ -222,6 +352,12 @@ CREATE TABLE IF NOT EXISTS agency_logs (
     tablesOk: hasUsersTable && hasPropertiesTable,
     hasUsersTable,
     hasPropertiesTable,
+    hasInquiriesTable,
+    hasTestimonialsTable,
+    hasAgenciesTable,
+    hasAgencyLogsTable,
+    hasNotificationsTable,
+    hasFavoritesTable,
     errorMessage,
     sql: creationSql,
     credentials: {
@@ -489,12 +625,20 @@ app.post("/api/agency-logs", async (req: Request, res: Response) => {
 });
 
 app.get("/api/notifications", async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from("notifications").select("*");
+    if (!error && data) return res.json(data);
+  } catch (e) {}
   const local = readLocalStore();
   res.json(local.notifications || []);
 });
 
 app.post("/api/notifications", async (req: Request, res: Response) => {
   const notifObj = req.body;
+  try {
+    const { data, error } = await supabase.from("notifications").upsert([notifObj]).select();
+    if (!error && data) return res.json(data[0] || notifObj);
+  } catch (e) {}
   const local = readLocalStore();
   local.notifications = local.notifications || [];
   local.notifications.push(notifObj);
@@ -504,6 +648,13 @@ app.post("/api/notifications", async (req: Request, res: Response) => {
 
 app.put("/api/notifications", async (req: Request, res: Response) => {
   const updatedNotifs = req.body;
+  try {
+    if (Array.isArray(updatedNotifs)) {
+      for (const n of updatedNotifs) {
+        await supabase.from("notifications").upsert([n]);
+      }
+    }
+  } catch (e) {}
   const local = readLocalStore();
   local.notifications = updatedNotifs;
   writeLocalStore(local);
@@ -511,12 +662,20 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
 });
 
 app.get("/api/favorites", async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from("favorites").select("*");
+    if (!error && data) return res.json(data);
+  } catch (e) {}
   const local = readLocalStore();
   res.json(local.favorites || []);
 });
 
 app.post("/api/favorites", async (req: Request, res: Response) => {
   const favObj = req.body;
+  try {
+    const { data, error } = await supabase.from("favorites").upsert([favObj]).select();
+    if (!error && data) return res.json(data[0] || favObj);
+  } catch (e) {}
   const local = readLocalStore();
   local.favorites = local.favorites || [];
   local.favorites = local.favorites.filter((f: any) => f.id !== favObj.id);

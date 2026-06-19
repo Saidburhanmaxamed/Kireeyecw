@@ -78,6 +78,12 @@ export default function AdminDashboard({
     tablesOk: boolean;
     hasUsersTable: boolean;
     hasPropertiesTable: boolean;
+    hasInquiriesTable?: boolean;
+    hasTestimonialsTable?: boolean;
+    hasAgenciesTable?: boolean;
+    hasAgencyLogsTable?: boolean;
+    hasNotificationsTable?: boolean;
+    hasFavoritesTable?: boolean;
     errorMessage: string;
     sql: string;
     credentials: { url: string; project_id: string };
@@ -1514,7 +1520,7 @@ export default function AdminDashboard({
                   Database Synchronizer Status
                 </h4>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
                     <span className="font-mono text-slate-500">Table: users</span>
                     <span className={supabaseStatus?.hasUsersTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
@@ -1526,6 +1532,48 @@ export default function AdminDashboard({
                     <span className="font-mono text-slate-500">Table: properties</span>
                     <span className={supabaseStatus?.hasPropertiesTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
                       {supabaseStatus?.hasPropertiesTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: inquiries</span>
+                    <span className={supabaseStatus?.hasInquiriesTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasInquiriesTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: testimonials</span>
+                    <span className={supabaseStatus?.hasTestimonialsTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasTestimonialsTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: agencies</span>
+                    <span className={supabaseStatus?.hasAgenciesTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasAgenciesTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: agency_logs</span>
+                    <span className={supabaseStatus?.hasAgencyLogsTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasAgencyLogsTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: notifications</span>
+                    <span className={supabaseStatus?.hasNotificationsTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasNotificationsTable ? "ACTIVE" : "MISSING SHELL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                    <span className="font-mono text-slate-500">Table: favorites</span>
+                    <span className={supabaseStatus?.hasFavoritesTable ? "text-emerald-500 font-black font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded" : "text-amber-500 font-mono text-[10px] bg-amber-500/10 px-2 py-0.5 rounded"}>
+                      {supabaseStatus?.hasFavoritesTable ? "ACTIVE" : "MISSING SHELL"}
                     </span>
                   </div>
                 </div>
