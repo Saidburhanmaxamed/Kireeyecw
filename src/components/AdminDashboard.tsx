@@ -110,11 +110,14 @@ export default function AdminDashboard({
   const [deleteUserCascade, setDeleteUserCascade] = useState(false);
   const [inquiryToDelete, setInquiryToDelete] = useState<Inquiry | null>(null);
 
+  const [pendingSubTab, setPendingSubTab] = useState<"properties" | "brokers">("properties");
+
   const pendingProperties = properties.filter(p => !p.approved);
   const approvedProperties = properties.filter(p => p.approved);
+  const pendingBrokers = users.filter(u => u.role === "agent" && u.approved === false);
 
   const stats = [
-    { label: language === "en" ? "Pending Vettings" : "Hubinta Sugaya", value: pendingProperties.length, icon: AlertTriangle, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/40", tab: "pending" as const },
+    { label: language === "en" ? "Pending Vettings" : "Hubinta Sugaya", value: pendingProperties.length + pendingBrokers.length, icon: AlertTriangle, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/40", tab: "pending" as const },
     { label: language === "en" ? "Active Listings" : "Guryaha Idman (Live)", value: approvedProperties.length, icon: Building2, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/10", tab: "properties" as const },
     { label: language === "en" ? "Vetted Brokers" : "Wakiilada Diiwaangashan", value: users.length, icon: Users, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/40", tab: "users" as const },
     { label: language === "en" ? "Contact Inquiries" : "Fariimaha Macmiilka", value: inquiries.length, icon: MessageSquare, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/40", tab: "inquiries" as const },
@@ -212,6 +215,7 @@ export default function AdminDashboard({
       phone: cPhone.trim() || "+252615000000",
       role: cRole,
       password: cPassword.trim() || "somali123",
+      approved: true,
       createdAt: new Date().toISOString()
     };
     onCreateUser(newUser);
@@ -384,7 +388,7 @@ export default function AdminDashboard({
               <span>Pending Vetting</span>
             </span>
             <span className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-full">
-              {pendingProperties.length}
+              {pendingProperties.length + pendingBrokers.length}
             </span>
           </button>
 
@@ -462,50 +466,131 @@ export default function AdminDashboard({
           
           {/* TAB 1: PENDING VETTING LISTINGS */}
           {adminTab === "pending" && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="pb-4 border-b border-gray-100 dark:border-slate-850">
                 <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white">Municipal Vetting Queue</h3>
-                <p className="text-xs text-slate-400 mt-1">Properties pending absolute title deed verification before published display.</p>
+                <p className="text-xs text-slate-400 mt-1 font-medium">Properties and brokers pending absolute credential verification before active status.</p>
               </div>
 
-              {pendingProperties.length === 0 ? (
-                <div className="text-center py-20 text-slate-400 italic text-sm">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-                  All listed properties have been certified. Vetting queue is clean!
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingProperties.map((prop) => (
-                    <div
-                      key={prop.id}
-                      className="p-4 rounded-2xl bg-amber-500/5 border border-amber-200/30 dark:border-amber-950/20 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4"
-                    >
-                      <div className="flex gap-4 items-center">
-                        <img src={prop.images[0]} className="h-12 w-16 object-cover rounded-lg bg-slate-100 dark:bg-slate-800" alt="Pending" />
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">{prop.title}</h4>
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold uppercase">{prop.category} in {prop.region}</span>
-                          <p className="text-[10px] font-mono mt-0.5 text-slate-400">Author: {prop.ownerName} ({prop.ownerPhone})</p>
+              {/* Vetting Sub-tabs */}
+              <div className="flex gap-2 p-1 bg-slate-50 dark:bg-slate-950/80 rounded-2xl border border-slate-100 dark:border-slate-850">
+                <button
+                  onClick={() => setPendingSubTab("properties")}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    pendingSubTab === "properties"
+                      ? "bg-white dark:bg-slate-900 text-[#014026] dark:text-emerald-400 shadow-sm border border-slate-200/50 dark:border-slate-800"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  }`}
+                >
+                  🏡 {language === "en" ? "Properties" : "Guryaha"} ({pendingProperties.length})
+                </button>
+                <button
+                  onClick={() => setPendingSubTab("brokers")}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    pendingSubTab === "brokers"
+                      ? "bg-white dark:bg-slate-900 text-[#014026] dark:text-emerald-400 shadow-sm border border-slate-200/50 dark:border-slate-800"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  }`}
+                >
+                  🏢 {language === "en" ? "Brokers" : "Wakiilada"} ({pendingBrokers.length})
+                </button>
+              </div>
+
+              {pendingSubTab === "properties" ? (
+                pendingProperties.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400 italic text-sm">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
+                    All listed properties have been certified. Vetting queue is clean!
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingProperties.map((prop) => (
+                      <div
+                        key={prop.id}
+                        className="p-4 rounded-2xl bg-amber-500/5 border border-amber-200/30 dark:border-amber-950/20 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4"
+                      >
+                        <div className="flex gap-4 items-center">
+                          <img src={prop.images[0]} className="h-12 w-16 object-cover rounded-lg bg-slate-100 dark:bg-slate-800" alt="Pending" />
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">{prop.title}</h4>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold uppercase">{prop.category} in {prop.region}</span>
+                            <p className="text-[10px] font-mono mt-0.5 text-slate-400">Author: {prop.ownerName} ({prop.ownerPhone})</p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 w-full md:w-auto self-end md:self-auto">
+                          <button
+                            onClick={() => triggerApprove(prop.id)}
+                            className="flex-1 md:flex-initial py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer text-center whitespace-nowrap"
+                          >
+                            Approve Listing
+                          </button>
+                          <button
+                            onClick={() => setPropertyToDelete(prop)}
+                            className="flex-1 md:flex-initial py-1.5 px-3 bg-red-100 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-400 text-red-700 rounded-lg text-xs font-bold cursor-pointer text-center"
+                          >
+                            Reject
+                          </button>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                pendingBrokers.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400 italic text-sm">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
+                    No brokers pending registration approvals.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingBrokers.map((usr) => (
+                      <div
+                        key={usr.id}
+                        className="p-4 rounded-2xl bg-amber-500/5 border border-amber-200/30 dark:border-amber-950/20 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4"
+                      >
+                        <div className="flex gap-4 items-center">
+                          <div className="h-10 w-10 shrink-0 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-black text-sm">
+                            {usr.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-900 dark:text-white">{usr.name}</h4>
+                            <p className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                                👤 user: {usr.username || usr.email.split("@")[0]}
+                              </span>
+                              <span>•</span>
+                              <span>{usr.email}</span>
+                              <span>•</span>
+                              <span>{usr.phone}</span>
+                            </p>
+                          </div>
+                        </div>
 
-                      <div className="flex gap-2 w-full md:w-auto self-end md:self-auto">
-                        <button
-                          onClick={() => triggerApprove(prop.id)}
-                          className="flex-1 md:flex-initial py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer text-center whitespace-nowrap"
-                        >
-                          Approve Listing
-                        </button>
-                        <button
-                          onClick={() => setPropertyToDelete(prop)}
-                          className="flex-1 md:flex-initial py-1.5 px-3 bg-red-100 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-400 text-red-700 rounded-lg text-xs font-bold cursor-pointer text-center"
-                        >
-                          Reject
-                        </button>
+                        <div className="flex gap-2 w-full md:w-auto self-end md:self-auto">
+                          <button
+                            onClick={() => {
+                              onUpdateUser({ ...usr, approved: true });
+                              triggerSuccess(`Broker "${usr.name}" approved successfully!`);
+                            }}
+                            className="flex-1 md:flex-initial py-1.5 px-3 bg-emerald-600 hover:bg-emerald-555 text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer text-center whitespace-nowrap"
+                          >
+                            Ogolow (Approve)
+                          </button>
+                          <button
+                            onClick={() => {
+                              setUserToDelete(usr);
+                              setDeleteUserCascade(true);
+                            }}
+                            className="flex-1 md:flex-initial py-1.5 px-3 bg-red-100 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-400 text-red-700 rounded-lg text-xs font-bold cursor-pointer text-center"
+                          >
+                            Diid (Reject)
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           )}
@@ -856,17 +941,45 @@ export default function AdminDashboard({
                             }`}>
                               {usr.role}
                             </span>
+                            {usr.role === "agent" && (
+                              <div className="mt-1">
+                                {usr.approved === false ? (
+                                  <span className="text-[8px] font-black font-mono px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-105 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                                    PENDING
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] font-black font-mono px-1.5 py-0.5 rounded uppercase tracking-wider bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-400">
+                                    APPROVED
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             <div className="text-[9px] text-slate-400 font-mono mt-1">
                               Properties listed: <span className="font-bold text-slate-700 dark:text-slate-300">{countOwnProperties}</span>
                             </div>
                           </div>
 
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1.5 items-center">
+                            {/* Approve Quick-action Button if Pending */}
+                            {usr.role === "agent" && usr.approved === false && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onUpdateUser({ ...usr, approved: true });
+                                  triggerSuccess(`Broker "${usr.name}" approved successfully!`);
+                                }}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wide cursor-pointer transition-colors active:scale-95"
+                                title="Approve Account"
+                              >
+                                {language === "en" ? "Approve" : "Ogolow"}
+                              </button>
+                            )}
+
                             {/* Edit Button */}
                             <button
                               type="button"
                               onClick={() => handleStartEditUser(usr)}
-                              className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-300 cursor-pointer"
+                              className="p-1.5 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-300 cursor-pointer"
                               title="Edit Broker Details"
                             >
                               <Edit className="h-3.5 w-3.5" />

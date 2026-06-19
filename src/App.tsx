@@ -33,7 +33,6 @@ import ContactPage from "./components/ContactPage";
 import Footer from "./components/Footer";
 import { Info, Bell, CheckCircle2, Heart, MessageSquare, Sparkles } from "lucide-react";
 import { Language } from "./localization";
-import { supabaseClient, supabaseDirectApi } from "./lib/supabaseClient";
 
 
 // Initial seed users
@@ -45,6 +44,7 @@ const INITIAL_USERS: User[] = [
     role: "admin",
     phone: "+252615555555",
     password: "Maalinle555",
+    approved: true,
     createdAt: new Date("2026-06-08").toISOString()
   },
   {
@@ -55,6 +55,7 @@ const INITIAL_USERS: User[] = [
     role: "agent",
     phone: "+252615123456",
     password: "somali123",
+    approved: true,
     createdAt: new Date("2026-03-15").toISOString()
   },
   {
@@ -65,6 +66,7 @@ const INITIAL_USERS: User[] = [
     role: "agent",
     phone: "+252634987654",
     password: "somali123",
+    approved: true,
     createdAt: new Date("2026-04-20").toISOString()
   }
 ];
@@ -100,14 +102,13 @@ export default function App() {
 
   // Floating Toast Alert notification indicator
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "info" | "heart"; text: string } | null>(null);
-  const [dbStatus, setDbStatus] = useState<{ supabaseConnected: boolean; supabaseUrl: string | null; hasServiceRoleKey: boolean; sqlSchema: string } | null>(null);
 
   // Scroll to top when activeTab changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [activeTab]);
 
-  // Load and seed initial states from Express server (centralized persistence)
+  // Load and seed initial states from LocalStorage for pure offline-first utility
   useEffect(() => {
     // 0. Language
     const savedLang = localStorage.getItem("sre_language") as Language | null;
@@ -123,306 +124,73 @@ export default function App() {
     document.documentElement.classList.remove("dark");
     localStorage.setItem("sre_theme", "light");
 
-    // Fetch DB Status from backend or calculate client-side if running purely on Netlify
-    fetch("/api/db-status")
-      .then((res) => res.json())
-      .then((status) => setDbStatus(status))
-      .catch((err) => {
-        console.warn("Express backend db-status unreachable. Designing client-side status card.", err);
-        const hasViteConfig = !!((import.meta as any).env.VITE_SUPABASE_URL && (import.meta as any).env.VITE_SUPABASE_ANON_KEY);
-        let sUrl = ((import.meta as any).env.VITE_SUPABASE_URL || "https://tdescdhzzktekxkozezq.supabase.co").trim();
-        if (sUrl.endsWith("/rest/v1/")) sUrl = sUrl.slice(0, -9);
-        else if (sUrl.endsWith("/rest/v1")) sUrl = sUrl.slice(0, -8);
-        if (sUrl.endsWith("/")) sUrl = sUrl.slice(0, -1);
+    // 2. Fetch/Load offline state structures
+    const localPropsStr = localStorage.getItem("sre_properties");
+    if (localPropsStr) {
+      setProperties(JSON.parse(localPropsStr));
+    } else {
+      setProperties(SAMPLE_PROPERTIES);
+      localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
+    }
 
-        setDbStatus({
-          supabaseConnected: hasViteConfig,
-          supabaseUrl: sUrl,
-          hasServiceRoleKey: false,
-          sqlSchema: `-- SQL editor schemas are pre-built to execute on your remote instance. Click 'Copy SQL' inside.`,
-          tablesExist: hasViteConfig
-        });
-      });
+    const localUsersStr = localStorage.getItem("sre_registered_users");
+    if (localUsersStr) {
+      setRegisteredUsers(JSON.parse(localUsersStr));
+    } else {
+      setRegisteredUsers(INITIAL_USERS);
+      localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
+    }
 
-    // 2. Fetch server bootstrap data (with elegant Netlify direct Supabase client fallback)
-    const bootstrapAppData = async () => {
-      // Load current local states so we never overwrite user's listings if remote tables are not yet setup or are empty
-      const localPropsStr = localStorage.getItem("sre_properties");
-      const localProps = localPropsStr ? JSON.parse(localPropsStr) : null;
+    const localInquiriesStr = localStorage.getItem("sre_inquiries");
+    if (localInquiriesStr) {
+      setInquiries(JSON.parse(localInquiriesStr));
+    } else {
+      setInquiries([]);
+    }
 
-      const localUsersStr = localStorage.getItem("sre_registered_users");
-      const localUsers = localUsersStr ? JSON.parse(localUsersStr) : null;
+    const localNotifsStr = localStorage.getItem("sre_notifications");
+    if (localNotifsStr) {
+      setNotifications(JSON.parse(localNotifsStr));
+    } else {
+      setNotifications([]);
+    }
 
-      const localInquiriesStr = localStorage.getItem("sre_inquiries");
-      const localInquiries = localInquiriesStr ? JSON.parse(localInquiriesStr) : null;
+    const localTestimonialsStr = localStorage.getItem("sre_testimonials");
+    if (localTestimonialsStr) {
+      setTestimonials(JSON.parse(localTestimonialsStr));
+    } else {
+      setTestimonials(SAMPLE_TESTIMONIALS);
+      localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
+    }
 
-      const localNotifsStr = localStorage.getItem("sre_notifications");
-      const localNotifs = localNotifsStr ? JSON.parse(localNotifsStr) : null;
+    const localAgenciesStr = localStorage.getItem("sre_agencies");
+    if (localAgenciesStr) {
+      setAgencies(JSON.parse(localAgenciesStr));
+    } else {
+      setAgencies(SEED_AGENCIES);
+      localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
+    }
 
-      const localTestimonialsStr = localStorage.getItem("sre_testimonials");
-      const localTestimonials = localTestimonialsStr ? JSON.parse(localTestimonialsStr) : null;
+    const localAgencyLogsStr = localStorage.getItem("sre_agency_logs");
+    if (localAgencyLogsStr) {
+      setAgencyLogs(JSON.parse(localAgencyLogsStr));
+    } else {
+      setAgencyLogs(SEED_AGENCY_LOGS);
+      localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
+    }
 
-      const localAgenciesStr = localStorage.getItem("sre_agencies");
-      const localAgencies = localAgenciesStr ? JSON.parse(localAgenciesStr) : null;
-
-      const localAgencyLogsStr = localStorage.getItem("sre_agency_logs");
-      const localAgencyLogs = localAgencyLogsStr ? JSON.parse(localAgencyLogsStr) : null;
-
-      if (supabaseClient) {
-        try {
-          console.log("[Dual Mode] Fetching database collections directly from client-side Supabase SDK...");
-          const data = await supabaseDirectApi.fetchBootstrapData();
-          
-          if (data.properties && data.properties.length > 0) {
-            const remoteIds = new Set(data.properties.map((p: any) => p.id));
-            const localCustom = (localProps || []).filter((p: any) => !remoteIds.has(p.id));
-            const mergedProps = [...localCustom, ...data.properties];
-            setProperties(mergedProps);
-            localStorage.setItem("sre_properties", JSON.stringify(mergedProps));
-          } else if (localProps && localProps.length > 0) {
-            setProperties(localProps);
-          } else {
-            setProperties(SAMPLE_PROPERTIES);
-            localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
-          }
-
-          if (data.users && data.users.length > 0) {
-            const remoteIds = new Set(data.users.map((u: any) => u.id));
-            const localCustom = (localUsers || []).filter((u: any) => !remoteIds.has(u.id));
-            const mergedUsers = [...localCustom, ...data.users];
-            setRegisteredUsers(mergedUsers);
-            localStorage.setItem("sre_registered_users", JSON.stringify(mergedUsers));
-          } else if (localUsers && localUsers.length > 0) {
-            setRegisteredUsers(localUsers);
-          } else {
-            setRegisteredUsers(INITIAL_USERS);
-            localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
-          }
-
-          if (data.inquiries && data.inquiries.length > 0) {
-            const remoteIds = new Set(data.inquiries.map((i: any) => i.id));
-            const localCustom = (localInquiries || []).filter((i: any) => !remoteIds.has(i.id));
-            const mergedInquiries = [...localCustom, ...data.inquiries];
-            setInquiries(mergedInquiries);
-            localStorage.setItem("sre_inquiries", JSON.stringify(mergedInquiries));
-          } else if (localInquiries && localInquiries.length > 0) {
-            setInquiries(localInquiries);
-          } else {
-            setInquiries([]);
-          }
-
-          if (data.notifications && data.notifications.length > 0) {
-            const remoteIds = new Set(data.notifications.map((n: any) => n.id));
-            const localCustom = (localNotifs || []).filter((n: any) => !remoteIds.has(n.id));
-            const mergedNotifs = [...localCustom, ...data.notifications];
-            setNotifications(mergedNotifs);
-            localStorage.setItem("sre_notifications", JSON.stringify(mergedNotifs));
-          } else if (localNotifs && localNotifs.length > 0) {
-            setNotifications(localNotifs);
-          } else {
-            setNotifications([]);
-          }
-
-          if (data.testimonials && data.testimonials.length > 0) {
-            const remoteIds = new Set(data.testimonials.map((t: any) => t.id));
-            const localCustom = (localTestimonials || []).filter((t: any) => !remoteIds.has(t.id));
-            const mergedTestimonials = [...localCustom, ...data.testimonials];
-            setTestimonials(mergedTestimonials);
-            localStorage.setItem("sre_testimonials", JSON.stringify(mergedTestimonials));
-          } else if (localTestimonials && localTestimonials.length > 0) {
-            setTestimonials(localTestimonials);
-          } else {
-            setTestimonials(SAMPLE_TESTIMONIALS);
-            localStorage.setItem("sre_testimonials", JSON.stringify(SAMPLE_TESTIMONIALS));
-          }
-
-          if (data.agencies && data.agencies.length > 0) {
-            const remoteIds = new Set(data.agencies.map((a: any) => a.id));
-            const localCustom = (localAgencies || []).filter((a: any) => !remoteIds.has(a.id));
-            const mergedAgencies = [...localCustom, ...data.agencies];
-            setAgencies(mergedAgencies);
-            localStorage.setItem("sre_agencies", JSON.stringify(mergedAgencies));
-          } else if (localAgencies && localAgencies.length > 0) {
-            setAgencies(localAgencies);
-          } else {
-            setAgencies(SEED_AGENCIES);
-            localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
-          }
-
-          if (data.agencyLogs && data.agencyLogs.length > 0) {
-            const remoteIds = new Set(data.agencyLogs.map((al: any) => al.id));
-            const localCustom = (localAgencyLogs || []).filter((al: any) => !remoteIds.has(al.id));
-            const mergedLogs = [...localCustom, ...data.agencyLogs];
-            setAgencyLogs(mergedLogs);
-            localStorage.setItem("sre_agency_logs", JSON.stringify(mergedLogs));
-          } else if (localAgencyLogs && localAgencyLogs.length > 0) {
-            setAgencyLogs(localAgencyLogs);
-          } else {
-            setAgencyLogs(SEED_AGENCY_LOGS);
-            localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
-          }
-          
-          return; // Bootstrap completed via direct SDK!
-        } catch (sdkErr) {
-          console.warn("[Dual Mode Warning] Client-side initialization failed to query tables. Resorting to Express proxy or Local Cache:", sdkErr);
-        }
-      }
-
-      // Default backend Proxy request
-      fetch("/api/data-bootstrap")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.properties && data.properties.length > 0) {
-            const remoteIds = new Set(data.properties.map((p: any) => p.id));
-            const localCustom = (localProps || []).filter((p: any) => !remoteIds.has(p.id));
-            const mergedProps = [...localCustom, ...data.properties];
-            setProperties(mergedProps);
-            localStorage.setItem("sre_properties", JSON.stringify(mergedProps));
-          } else if (localProps && localProps.length > 0) {
-            setProperties(localProps);
-          } else {
-            setProperties(SAMPLE_PROPERTIES);
-          }
-          
-          if (data.users && data.users.length > 0) {
-            const remoteIds = new Set(data.users.map((u: any) => u.id));
-            const localCustom = (localUsers || []).filter((u: any) => !remoteIds.has(u.id));
-            const mergedUsers = [...localCustom, ...data.users];
-            setRegisteredUsers(mergedUsers);
-            localStorage.setItem("sre_registered_users", JSON.stringify(mergedUsers));
-          } else if (localUsers && localUsers.length > 0) {
-            setRegisteredUsers(localUsers);
-          } else {
-            setRegisteredUsers(INITIAL_USERS);
-          }
-
-          if (data.inquiries && data.inquiries.length > 0) {
-            const remoteIds = new Set(data.inquiries.map((i: any) => i.id));
-            const localCustom = (localInquiries || []).filter((i: any) => !remoteIds.has(i.id));
-            const mergedInquiries = [...localCustom, ...data.inquiries];
-            setInquiries(mergedInquiries);
-            localStorage.setItem("sre_inquiries", JSON.stringify(mergedInquiries));
-          } else if (localInquiries) {
-            setInquiries(localInquiries);
-          } else {
-            setInquiries([]);
-          }
-
-          if (data.notifications && data.notifications.length > 0) {
-            const remoteIds = new Set(data.notifications.map((n: any) => n.id));
-            const localCustom = (localNotifs || []).filter((n: any) => !remoteIds.has(n.id));
-            const mergedNotifs = [...localCustom, ...data.notifications];
-            setNotifications(mergedNotifs);
-            localStorage.setItem("sre_notifications", JSON.stringify(mergedNotifs));
-          } else if (localNotifs) {
-            setNotifications(localNotifs);
-          } else {
-            setNotifications([]);
-          }
-
-          if (data.testimonials && data.testimonials.length > 0) {
-            const remoteIds = new Set(data.testimonials.map((t: any) => t.id));
-            const localCustom = (localTestimonials || []).filter((t: any) => !remoteIds.has(t.id));
-            const mergedTestimonials = [...localCustom, ...data.testimonials];
-            setTestimonials(mergedTestimonials);
-            localStorage.setItem("sre_testimonials", JSON.stringify(mergedTestimonials));
-          } else if (localTestimonials && localTestimonials.length > 0) {
-            setTestimonials(localTestimonials);
-          } else {
-            setTestimonials(SAMPLE_TESTIMONIALS);
-          }
-
-          if (data.agencies && data.agencies.length > 0) {
-            const remoteIds = new Set(data.agencies.map((a: any) => a.id));
-            const localCustom = (localAgencies || []).filter((a: any) => !remoteIds.has(a.id));
-            const mergedAgencies = [...localCustom, ...data.agencies];
-            setAgencies(mergedAgencies);
-            localStorage.setItem("sre_agencies", JSON.stringify(mergedAgencies));
-          } else if (localAgencies && localAgencies.length > 0) {
-            setAgencies(localAgencies);
-          } else {
-            setAgencies(SEED_AGENCIES);
-          }
-
-          if (data.agencyLogs && data.agencyLogs.length > 0) {
-            const remoteIds = new Set(data.agencyLogs.map((al: any) => al.id));
-            const localCustom = (localAgencyLogs || []).filter((al: any) => !remoteIds.has(al.id));
-            const mergedLogs = [...localCustom, ...data.agencyLogs];
-            setAgencyLogs(mergedLogs);
-            localStorage.setItem("sre_agency_logs", JSON.stringify(mergedLogs));
-          } else if (localAgencyLogs && localAgencyLogs.length > 0) {
-            setAgencyLogs(localAgencyLogs);
-          } else {
-            setAgencyLogs(SEED_AGENCY_LOGS);
-          }
-        })
-        .catch((err) => {
-          console.log("[Dual Mode] Backend server unreachable. Restoring secure cache fallback.", err);
-          
-          const savedProps = localStorage.getItem("sre_properties");
-          if (savedProps) {
-            setProperties(JSON.parse(savedProps));
-          } else {
-            localStorage.setItem("sre_properties", JSON.stringify(SAMPLE_PROPERTIES));
-            setProperties(SAMPLE_PROPERTIES);
-          }
-
-          const savedUsers = localStorage.getItem("sre_registered_users");
-          if (savedUsers) {
-            setRegisteredUsers(JSON.parse(savedUsers));
-          } else {
-            localStorage.setItem("sre_registered_users", JSON.stringify(INITIAL_USERS));
-            setRegisteredUsers(INITIAL_USERS);
-          }
-
-          const savedInqs = localStorage.getItem("sre_inquiries");
-          if (savedInqs) {
-            setInquiries(JSON.parse(savedInqs));
-          }
-
-          const savedNotifs = localStorage.getItem("sre_notifications");
-          if (savedNotifs) {
-            setNotifications(JSON.parse(savedNotifs));
-          }
-
-          const savedTestimonials = localStorage.getItem("sre_testimonials");
-          if (savedTestimonials) {
-            setTestimonials(JSON.parse(savedTestimonials));
-          } else {
-            setTestimonials(SAMPLE_TESTIMONIALS);
-          }
-
-          const savedAgencies = localStorage.getItem("sre_agencies");
-          if (savedAgencies) {
-            setAgencies(JSON.parse(savedAgencies));
-          } else {
-            localStorage.setItem("sre_agencies", JSON.stringify(SEED_AGENCIES));
-            setAgencies(SEED_AGENCIES);
-          }
-
-          const savedAgencyLogs = localStorage.getItem("sre_agency_logs");
-          if (savedAgencyLogs) {
-            setAgencyLogs(JSON.parse(savedAgencyLogs));
-          } else {
-            localStorage.setItem("sre_agency_logs", JSON.stringify(SEED_AGENCY_LOGS));
-            setAgencyLogs(SEED_AGENCY_LOGS);
-          }
-        });
-    };
-
-    bootstrapAppData();
-
-    // 3. User Credentials login persistence
+    // 3. Current logged-in Broker/Admin persistence
     const savedUser = localStorage.getItem("sre_current_user");
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
 
-    // 4. Favorites Setup
+    // 4. Saved Favorites catalog
     const savedFavs = localStorage.getItem("sre_favorites");
     if (savedFavs) {
       setFavorites(JSON.parse(savedFavs));
     } else {
+      setFavorites([]);
       localStorage.setItem("sre_favorites", JSON.stringify([]));
     }
   }, []);
@@ -487,18 +255,6 @@ export default function App() {
     if (!registeredUsers.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
       const updatedUsers = [...registeredUsers, user];
       saveUsers(updatedUsers);
-
-      // Save user registry to back-end (Dual-Mode: Direct SDK if configured, else Express Proxy)
-      if (supabaseClient) {
-        supabaseDirectApi.insertUser(user)
-          .catch(err => console.error("Error saving registered user via direct Supabase Client:", err));
-      } else {
-        fetch("/api/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(user)
-        }).catch(err => console.error("Error saving registered user to cloud:", err));
-      }
     }
 
     // Add alert notification
@@ -524,18 +280,6 @@ export default function App() {
     localStorage.setItem("sre_current_user", JSON.stringify(updatedUser));
     const updatedUsers = registeredUsers.map(u => u.id === updatedUser.id ? updatedUser : u);
     saveUsers(updatedUsers);
-
-    // Save profile update to back-end (Dual-Mode: Direct SDK if configured, else Express Proxy)
-    if (supabaseClient) {
-      supabaseDirectApi.updateUser(updatedUser.id, updatedUser)
-        .catch(err => console.error("Error saving updated user user profile via direct Supabase client:", err));
-    } else {
-      fetch(`/api/users/${updatedUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedUser)
-      }).catch(err => console.error("Error saving updated user user profile key:", err));
-    }
   };
 
   const handleAddTestimonial = (testimonial: Omit<Testimonial, "id">) => {
@@ -544,18 +288,6 @@ export default function App() {
       id: "testimonial-" + Date.now()
     };
     saveTestimonials([newTestimonial, ...testimonials]);
-
-    // Save testimonial to back-end (Dual-Mode: Direct SDK if configured, else Express Proxy)
-    if (supabaseClient) {
-      supabaseDirectApi.insertTestimonial(newTestimonial)
-        .catch(err => console.error("Error saving testimonial via direct Supabase Client:", err));
-    } else {
-      fetch("/api/testimonials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newTestimonial)
-      }).catch(err => console.error("Error saving testimonial:", err));
-    }
   };
 
   const handleLogout = () => {
@@ -644,26 +376,6 @@ export default function App() {
 
     saveInquiries([newInquiry, ...inquiries]);
 
-    // Save inquiry to backend Express server (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.insertInquiry(newInquiry)
-        .catch(err => {
-          console.error("Error creating inquiry via direct Supabase Client:", err);
-          triggerToast(
-            language === "en"
-              ? "Saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
-              : "Paas baa ku badbaaday! Laakiin Supabase baa cilladoobay (Jadwallada baa maqan - ku dar badanka Setup ee sare).",
-            "info"
-          );
-        });
-    } else {
-      fetch("/api/inquiries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newInquiry)
-      }).catch(err => console.error("Error creating inquiry on backend:", err));
-    }
-
     // Send app notification alert to the matching owner/broker
     const matchedProp = properties.find(p => p.id === inqPayload.propertyId);
     const notificationId = "notif-" + Math.random().toString(36).substr(2, 9);
@@ -696,39 +408,6 @@ export default function App() {
 
     saveProperties([newProp, ...properties]);
 
-    // Save property listing to backend Express server (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.insertProperty(newProp)
-        .then(() => {
-          // Also save owner/broker auto-notification inside Supabase if ready
-          const promoNotif: AppNotification = {
-            id: "notif-add-" + Date.now(),
-            title: "New Property Published",
-            message: `Your property listing: "${payload.title}" has been verified and mapped.`,
-            type: "success",
-            createdAt: new Date().toISOString(),
-            read: false
-          };
-          supabaseDirectApi.insertNotification(promoNotif)
-            .catch(e => console.warn("Supabase notif register skip", e));
-        })
-        .catch(err => {
-          console.error("Error creating property spec via direct Supabase Client:", err);
-          triggerToast(
-            language === "en"
-              ? "Saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
-              : "Guryaha waa lagu daray kombiyutarkaaga! Laakiin Supabase waa ku guuldareystay (Jadwallada oo maqan awgeed - riix batoonka Setup ee sare).",
-            "info"
-          );
-        });
-    } else {
-      fetch("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProp)
-      }).catch(err => console.error("Error creating property spec on backend:", err));
-    }
-
     // Trigger Notification
     const updatedNotifs = [
       {
@@ -753,35 +432,12 @@ export default function App() {
       return p;
     });
     saveProperties(updated);
-
-    // Save modified property specifications to Express server (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.updateProperty(id, updatedFields)
-        .catch(err => console.error("Error updating property via direct Supabase Client:", err));
-    } else {
-      fetch(`/api/properties/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedFields)
-      }).catch(err => console.error("Error updating property on backend:", err));
-    }
-
     triggerToast("Listing specifications updated", "success");
   };
 
   const handleDeleteProperty = (id: string) => {
     const updated = properties.filter(p => p.id !== id);
     saveProperties(updated);
-
-    // Delete property on server (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.deleteProperty(id)
-        .catch(err => console.error("Error deleting property via direct Supabase Client:", err));
-    } else {
-      fetch(`/api/properties/${id}`, {
-        method: "DELETE"
-      }).catch(err => console.error("Error deleting property on backend:", err));
-    }
 
     // Sync saved favorites
     const updatedFavs = favorites.filter(favId => favId !== id);
@@ -812,76 +468,23 @@ export default function App() {
       localStorage.setItem("sre_current_user", JSON.stringify(updatedUser));
     }
 
-    // Save user update to server-side store (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.updateUser(updatedUser.id, updatedUser)
-        .catch(err => console.error("Error updating user via direct Supabase Client:", err));
-    } else {
-      fetch(`/api/users/${updatedUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedUser)
-      }).catch(err => console.error("Error updating user on backend:", err));
-    }
-
     triggerToast("Broker registry entry updated", "success");
   };
 
   const handleCreateUser = (newUser: User) => {
     const updatedUsers = [...registeredUsers, newUser];
     saveUsers(updatedUsers);
-
-    // Add registered user to server-side store (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.insertUser(newUser)
-        .catch(err => {
-          console.error("Error registering user via direct Supabase Client:", err);
-          triggerToast(
-            language === "en"
-              ? "Broker saved locally! But Supabase failed (Tables might be missing - configure via top Setup button)."
-              : "Diiwaanka waa lagu daray kombiyutarkaaga! Laakiin Supabase waa ku guuldareystay (Jadwallada oo maqan awgeed).",
-            "info"
-          );
-        });
-    } else {
-      fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser)
-      }).catch(err => console.error("Error registering user on backend:", err));
-    }
-
     triggerToast("Broker registered successfully", "success");
   };
 
   const handleDeleteInquiry = (id: string) => {
     const updated = inquiries.filter(i => i.id !== id);
     saveInquiries(updated);
-
-    // Cancel / Delete inquiry ticket on server (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.deleteInquiry(id)
-        .catch(err => console.error("Error deleting inquiry via direct Supabase Client:", err));
-    } else {
-      fetch(`/api/inquiries/${id}`, {
-        method: "DELETE"
-      }).catch(err => console.error("Error deleting inquiry on backend:", err));
-    }
-
     triggerToast("Contact inquiry removed from console", "info");
   };
 
   const handleCreateAgency = async (newAgency: Agency) => {
     try {
-      if (supabaseClient) {
-         await supabaseDirectApi.insertAgency(newAgency);
-      } else {
-         await fetch("/api/agencies", {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify(newAgency)
-         });
-      }
       const updated = [newAgency, ...agencies];
       setAgencies(updated);
       localStorage.setItem("sre_agencies", JSON.stringify(updated));
@@ -905,13 +508,6 @@ export default function App() {
   const handleDeleteAgency = async (id: string) => {
     try {
       const targetAgency = agencies.find(a => a.id === id);
-      if (supabaseClient) {
-         await supabaseDirectApi.deleteAgency(id);
-      } else {
-         await fetch(`/api/agencies/${id}`, {
-           method: "DELETE"
-         });
-      }
       const updated = agencies.filter(a => a.id !== id);
       setAgencies(updated);
       localStorage.setItem("sre_agencies", JSON.stringify(updated));
@@ -935,15 +531,6 @@ export default function App() {
 
   const handleCreateAgencyLog = async (newLog: AgencyLog) => {
     try {
-      if (supabaseClient) {
-         await supabaseDirectApi.insertAgencyLog(newLog);
-      } else {
-         await fetch("/api/agency-logs", {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify(newLog)
-         });
-      }
       const updated = [newLog, ...agencyLogs];
       setAgencyLogs(updated);
       localStorage.setItem("sre_agency_logs", JSON.stringify(updated));
@@ -960,19 +547,6 @@ export default function App() {
       return p;
     });
     saveProperties(updated);
-
-    // Set approved: true on the backend Express database (Dual Mode)
-    if (supabaseClient) {
-      supabaseDirectApi.updateProperty(id, { approved: true })
-        .catch(err => console.error("Error approving property via direct Supabase Client:", err));
-    } else {
-      fetch(`/api/properties/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approved: true })
-      }).catch(err => console.error("Error approving property listing:", err));
-    }
-
     triggerToast("Vetting approved. Property listed publicly.", "success");
   };
 
@@ -1075,7 +649,6 @@ export default function App() {
         setActiveTab={setActiveTab}
         language={language}
         onToggleLanguage={handleToggleLanguage}
-        dbStatus={dbStatus}
       />
 
       {/* 2. FLOATING ALERTS OR TOAST MESSAGE CENTER */}

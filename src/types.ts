@@ -78,6 +78,7 @@ export interface User {
   phone: string;
   password?: string;
   avatar?: string;
+  approved?: boolean;
   createdAt: string;
 }
 

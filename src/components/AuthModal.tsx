@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { X, Lock, Mail, User, Phone, Briefcase, Unlock, CheckCircle, ShieldAlert } from "lucide-react";
+import { X, Lock, Mail, User, Phone, Briefcase, Unlock, CheckCircle, ShieldAlert, Sparkles, KeyRound } from "lucide-react";
 import { User as UserType } from "../types";
 import { Language } from "../localization";
 
@@ -33,46 +33,6 @@ export default function AuthModal({
   const [adminKey, setAdminKey] = useState(""); // If they want to register as admin (needs passcode "somali123")
   const [showAdminField, setShowAdminField] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
-  const [emailActive, setEmailActive] = useState(false);
-  const [passwordActive, setPasswordActive] = useState(false);
-
-  // Default fallback demo brokers so users can instantly logs in
-  const handleQuickLogin = (roleType: "agent" | "admin" | "buyer") => {
-    let mockUser: UserType;
-    if (roleType === "admin") {
-      mockUser = {
-        id: "admin-ibnu",
-        name: "Ibnuburhan Guud",
-        email: "Ibnuburhan555@gmail.com",
-        role: "admin",
-        phone: "+252615555555",
-        createdAt: new Date().toISOString()
-      };
-    } else if (roleType === "agent") {
-      mockUser = {
-        id: "user-agent-1",
-        name: "Abdirahman Warsame (Real Estate Lead)",
-        email: "abdirahman@realestate.so",
-        role: "agent",
-        phone: "+252615123456",
-        createdAt: new Date().toISOString()
-      };
-    } else {
-      mockUser = {
-        id: "buyer-demo",
-        name: "Deqo Salad",
-        email: "deqo@gmail.com",
-        role: "buyer",
-        phone: "+252634443322",
-        createdAt: new Date().toISOString()
-      };
-    }
-    
-    // Save current user to localStorage
-    localStorage.setItem("sre_current_user", JSON.stringify(mockUser));
-    onLoginSuccess(mockUser);
-    onClose();
-  };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,23 +194,42 @@ export default function AuthModal({
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name || !phone) return;
+    if (!email || !password || !name || !phone) {
+      setFeedback({
+        type: "error",
+        msg: "Fadlan dhammaan meelaha banaan ku shub xogtaada saxda ah."
+      });
+      return;
+    }
 
-    const assignedRole = showAdminField && adminKey === "somali123" ? "admin" : role;
+    const assignedRole = role; // "agent" or "buyer" as selected
 
-    const newRegister: UserType & { password?: string } = {
+    const newRegister: UserType & { password?: string, username?: string } = {
       id: "registered-" + Math.random().toString(36).substr(2, 9),
       name,
-      email,
-      role: assignedRole as "admin" | "agent" | "buyer",
-      phone,
-      password,
+      email: email.trim(),
+      username: email.toLowerCase().trim().split("@")[0], // auto-generate username for easier login
+      role: assignedRole,
+      phone: phone.trim(),
+      password: password.trim(),
+      approved: assignedRole === "agent" ? false : true,
       createdAt: new Date().toISOString()
     };
 
     // Store in registered users array
     const savedUsersRaw = localStorage.getItem("sre_registered_users");
     const savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+    
+    // Check if user already exists
+    const duplicate = savedUsers.find((u: any) => u.email.toLowerCase().trim() === email.toLowerCase().trim());
+    if (duplicate) {
+      setFeedback({
+        type: "error",
+        msg: `E-mailka (${email}) mar hore ayaa loo isticmaalay. Fadlan isticmaal email kale ama isku day inaad gasho.`
+      });
+      return;
+    }
+
     savedUsers.push(newRegister);
     localStorage.setItem("sre_registered_users", JSON.stringify(savedUsers));
 
@@ -260,13 +239,13 @@ export default function AuthModal({
     // Set feedback
     setFeedback({
       type: "success",
-      msg: `Account registered successfully as a verified ${assignedRole}! Logging you in...`
+      msg: `Guul sheegad! Waxaa laguu diiwaan-galiyay sidii ${assignedRole === "agent" ? "Broker / Agent" : "Macaamiil / Buyer"} dhashay. Hadda laguu wareejinayaa gudaha...`
     });
 
     setTimeout(() => {
       onLoginSuccess(newRegister);
       onClose();
-    }, 2000);
+    }, 1500);
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
@@ -287,61 +266,62 @@ export default function AuthModal({
   return (
     <div 
       id="auth-modal-overlay" 
-      className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 transition-all"
+      className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-0 sm:p-4 transition-all duration-300"
     >
       <div 
         id="auth-modal-card" 
-        className="relative w-full sm:max-w-md h-full sm:h-auto sm:max-h-[92vh] bg-white dark:bg-slate-900 border-0 sm:border-2 border-gray-100 dark:border-slate-800 rounded-none sm:rounded-3xl p-6 sm:p-8 shadow-2xl overflow-y-auto select-none transition-all scrollbar-thin scrollbar-thumb-emerald-500/20"
+        className="relative w-full sm:max-w-md h-full sm:h-auto sm:max-h-[92vh] bg-white dark:bg-slate-900 border-0 sm:border border-slate-200 dark:border-slate-800 rounded-none sm:rounded-3xl p-6 sm:p-8 shadow-2xl overflow-y-auto select-none transition-all duration-300 scrollbar-thin scrollbar-thumb-emerald-500/20"
       >
         
         {/* Floating Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-pointer"
+          className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 hover:bg-emerald-500 dark:bg-slate-800 dark:hover:bg-emerald-600 text-slate-500 hover:text-white dark:text-slate-400 dark:hover:text-white cursor-pointer transition-all duration-300 hover:rotate-90 active:scale-95"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
         {/* Brand header */}
         <div className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 bg-emerald-100 dark:bg-emerald-950 rounded-2xl items-center justify-center text-emerald-600 dark:text-emerald-400 mb-2 font-display font-black">
+          <div className="relative inline-flex h-14 w-14 bg-gradient-to-tr from-emerald-600 to-teal-400 rounded-2xl items-center justify-center text-white mb-3 shadow-lg shadow-emerald-500/20 font-display font-black text-lg tracking-wider">
             SRH
+            <div className="absolute -inset-0.5 bg-emerald-400 rounded-2xl blur-sm opacity-30 -z-10 animate-pulse"></div>
           </div>
-          <h2 className="font-display font-bold text-xl text-slate-900 dark:text-white">
+          <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white tracking-tight">
             {activeTab === "login" && (loginType === "agent" 
               ? "🏢 Broker & Agent Portal" 
-              : "👑 General Admin Portal")}
+              : "👑 Admin Console")}
             {activeTab === "register" && "Create Broker Account"}
             {activeTab === "forgot" && "Reset Passcode Authority"}
           </h2>
-          <p className="text-xs text-slate-400 mt-1 font-sans">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium leading-relaxed max-w-sm mx-auto">
             {activeTab === "login" && (loginType === "agent" 
-              ? "Sign in to manage your rental and sale listings" 
-              : "Administrative console to check land deeds and broker approvals")}
-            {activeTab === "register" && "Verify your credentials to join our local broker grid"}
-            {activeTab === "forgot" && "Recover your registered real estate credentials"}
+              ? "Sign in to manage listings, analyze leads, and access local real-estate tools." 
+              : "Administrative space to manage land deed approvals, agencies, and broker vetting.")}
+            {activeTab === "register" && "Sign up to join our network of certified real estate brokers."}
+            {activeTab === "forgot" && "Reset your administrative console or broker crew passcode."}
           </p>
         </div>
 
         {/* Tab switchers if not in forgot page */}
         {activeTab !== "forgot" && (
-          <div className="flex bg-slate-50 dark:bg-slate-950 border border-gray-100 dark:border-slate-850 p-1.5 rounded-xl mb-6">
+          <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl mb-6 border border-slate-200/50 dark:border-slate-800/80">
             <button
               onClick={() => { setActiveTab("login"); setFeedback(null); }}
-              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 activeTab === "login"
-                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-white shadow-sm font-black"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-850 text-emerald-650 dark:text-emerald-400 shadow-md font-extrabold"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
               🔑 Log In
             </button>
             <button
               onClick={() => { setActiveTab("register"); setFeedback(null); }}
-              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 activeTab === "register"
-                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-white shadow-sm font-black"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-850 text-emerald-655 dark:text-emerald-400 shadow-md font-extrabold"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
               📝 Sign Up
@@ -351,28 +331,28 @@ export default function AuthModal({
 
         {/* Global Feedback Panel */}
         {feedback && (
-          <div className={`p-4 rounded-xl text-xs flex gap-2 items-start mb-6 border ${
+          <div className={`p-4 rounded-2xl text-xs flex gap-3 items-start mb-6 border animate-fade-in ${
             feedback.type === "success" 
-              ? "bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400"
-              : "bg-rose-50 border-rose-100 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/40 dark:text-rose-400"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+              : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-450"
           }`}>
             {feedback.type === "success" ? (
-              <CheckCircle className="h-4.5 w-4.5 flex-shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-450" />
+              <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-500 animate-bounce" />
             ) : (
-              <ShieldAlert className="h-4.5 w-4.5 flex-shrink-0 mt-0.5 text-rose-500 dark:text-rose-450" />
+              <ShieldAlert className="h-5 w-5 flex-shrink-0 text-rose-500 animate-pulse" />
             )}
-            <span>{feedback.msg}</span>
+            <span className="font-medium leading-relaxed">{feedback.msg}</span>
           </div>
         )}
 
         {/* Login Form Layout */}
         {activeTab === "login" && (
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
+          <div className="space-y-5">
             
             {/* Split Switcher inside Login Portal */}
-            <div className="space-y-1.5 p-1 bg-slate-50 dark:bg-slate-950/80 border border-gray-100 dark:border-slate-850/80 rounded-2xl">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block text-center py-1">
-                Portal Access Type
+            <div className="space-y-2 p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-2xl">
+              <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block text-center py-1">
+                Portal Access Level
               </label>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
@@ -382,15 +362,15 @@ export default function AuthModal({
                     setEmail("");
                     setPassword("");
                   }}
-                  className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer border ${
+                  className={`py-3 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer border ${
                     loginType === "agent"
-                      ? "bg-emerald-600 text-white border-emerald-500 shadow-md scale-[1.01]"
-                      : "bg-white dark:bg-slate-900 text-slate-400 border-gray-150 dark:border-slate-805 hover:text-slate-700 dark:hover:text-slate-200"
+                      ? "bg-gradient-to-br from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/10 scale-[1.02]"
+                      : "bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-150 dark:border-slate-800 hover:text-slate-700 dark:hover:text-slate-350"
                   }`}
                 >
-                  <Briefcase className="h-4 w-4" />
-                  <span className="text-[10px] font-extrabold uppercase">Broker / Agent</span>
-                  <span className="text-[8px] opacity-80">Property Agent</span>
+                  <Briefcase className="h-4.5 w-4.5" />
+                  <span className="text-[11px] font-black uppercase tracking-wider">Broker / Agent</span>
+                  <span className="text-[9px] opacity-75">Local Listings</span>
                 </button>
 
                 <button
@@ -400,252 +380,213 @@ export default function AuthModal({
                     setEmail("");
                     setPassword("");
                   }}
-                  className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer border ${
+                  className={`py-3 px-1.5 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer border ${
                     loginType === "admin"
-                      ? "bg-rose-700 text-white border-rose-600 shadow-md scale-[1.01]"
-                      : "bg-white dark:bg-slate-900 text-slate-400 border-gray-150 dark:border-slate-805 hover:text-slate-700 dark:hover:text-slate-200"
+                      ? "bg-gradient-to-br from-rose-700 to-red-650 text-white border-rose-650 shadow-lg shadow-rose-950/10 scale-[1.02]"
+                      : "bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-150 dark:border-slate-800 hover:text-slate-700 dark:hover:text-slate-350"
                   }`}
                 >
-                  <Lock className="h-4 w-4" />
-                  <span className="text-[10px] font-extrabold uppercase">Admin Portal</span>
-                  <span className="text-[8px] opacity-80">System Admin</span>
+                  <Lock className="h-4.5 w-4.5" />
+                  <span className="text-[11px] font-black uppercase tracking-wider">Admin Console</span>
+                  <span className="text-[9px] opacity-75">Platform Management</span>
                 </button>
               </div>
             </div>
 
-            <div className="space-y-1 text-left">
-              <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">
-                {loginType === "admin" ? "Admin Email Address" : "Broker Username"}
-              </label>
-              <div className="relative">
-                {loginType === "admin" ? (
-                  <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                ) : (
-                  <User className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                )}
-                <input
-                  type={loginType === "admin" ? (emailActive ? "email" : "password") : "text"}
-                  placeholder={loginType === "admin" ? "Enter admin email" : "e.g. abdirahman"}
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setEmailActive(true)}
-                  onBlur={() => setEmailActive(false)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-100 dark:border-slate-800 text-sm outline-none focus:border-emerald-500 font-sans font-medium"
-                />
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div className="space-y-1.5 text-left">
+                <label className="text-xs font-bold text-slate-750 dark:text-slate-300 uppercase tracking-wider block">
+                  {loginType === "admin" ? "Admin Official Email" : "Broker Username or Email"}
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors">
+                    {loginType === "admin" ? <Mail className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={loginType === "admin" ? "Enter admin email" : "e.g. abdirahman"}
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/10 font-sans font-medium transition-all"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1 text-left">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">Passcode (password)</label>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("forgot")}
-                  className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
-                >
-                  Forgot passcode?
-                </button>
+              <div className="space-y-1.5 text-left">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-slate-750 dark:text-slate-300 uppercase tracking-wider block">Passcode Access</label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("forgot")}
+                    className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                  >
+                    Forgot passcode?
+                  </button>
+                </div>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/10 font-sans font-medium transition-all"
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                <input
-                  type={passwordActive ? "text" : "password"}
-                  placeholder="••••••••"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordActive(true)}
-                  onBlur={() => setPasswordActive(false)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-150 dark:border-slate-800 text-sm outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
 
-            <button
-              type="submit"
-              className={`w-full py-3 text-white font-black text-sm rounded-xl transition-all shadow-md cursor-pointer hover:scale-[1.01] uppercase tracking-wide ${
-                loginType === "admin"
-                  ? "bg-rose-700 hover:bg-rose-850 dark:bg-rose-650 dark:hover:bg-rose-550 shadow-rose-955/20"
-                  : "bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-emerald-500/10"
-              }`}
-            >
-              {loginType === "admin" ? "🔓 Enter Admin Console" : "🏢 Enter Broker Portal"}
-            </button>
+              <button
+                type="submit"
+                className={`w-full py-3.5 text-white font-black text-xs rounded-xl transition-all shadow-lg hover:shadow-xl cursor-pointer hover:scale-[1.01] active:scale-95 uppercase tracking-widest mt-2 ${
+                  loginType === "admin"
+                    ? "bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 shadow-rose-950/20"
+                    : "bg-gradient-to-r from-slate-900 to-slate-850 hover:from-emerald-600 hover:to-teal-600 dark:from-emerald-650 dark:to-teal-600 dark:hover:from-emerald-550 dark:hover:to-teal-555 shadow-emerald-500/10"
+                }`}
+              >
+                {loginType === "admin" ? "🔓 Access Administration Console" : "🏢 Authorize Broker Registry"}
+              </button>
 
-          </form>
+            </form>
+          </div>
         )}
 
         {/* Register Form Layout */}
         {activeTab === "register" && (
-          <div className="space-y-4 py-2 text-left">
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-800 dark:text-amber-200 text-xs space-y-2.5">
-              <div className="flex gap-2 items-center text-amber-600 dark:text-amber-400 font-extrabold text-[13px]">
-                <ShieldAlert className="h-4.5 w-4.5 shrink-0 animate-bounce text-amber-500" />
-                <span>Public Registration is Locked</span>
+          <div className="space-y-5 py-1 text-left animate-fade-in">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 text-slate-800 dark:text-emerald-305 text-xs space-y-2">
+              <div className="flex gap-2 items-center text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">
+                <Sparkles className="h-5 w-5 shrink-0 text-emerald-500 animate-pulse" />
+                <span>Ku soo dhawaada Diiwaan-galinta Wakiilka (Broker Registry)</span>
               </div>
               <p className="leading-relaxed">
-                Due to quality assurance and land title verification (Title-Deeds Vetting), <strong>direct registration is not open to the public.</strong>
+                Buuxi foomka hoose si aad u samaysato profile-kaaga Broker-nimo ee rasmiga ah. Iska diiwaan-gali si toos ah adigoo heli doona dhammaan agabka guryaha daryeela.
               </p>
-              <p className="leading-relaxed font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                Brokers, agents, and housing managers are registered directly by the administration <strong>(Admin Console ONLY)</strong> to ensure absolute compliance.
-              </p>
-              <div className="pt-2 border-t border-amber-500/15 text-[11px] font-sans text-slate-600 dark:text-slate-300">
-                📞 For more information or if you are a new broker, please contact the Administration Team (Ibnuburhan Guud).
-              </div>
             </div>
 
-            {/* Overriding Administrative Option */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Administrative Key Override</h4>
-                <span className="text-[9px] bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full font-bold">Admin Privileges</span>
-              </div>
-              
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                If you are an administrator wishing to register a new agent, please enter the override password (e.g. <code>somali123</code>):
-              </p>
-
-              <div className="space-y-3 animate-fade-in">
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <form onSubmit={handleRegisterSubmit} className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-755 dark:text-slate-300 uppercase tracking-wider block">Magacaaga oo Buuxa (Full Name)</label>
+                <div className="relative group">
+                  <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
                   <input
-                    type="password"
-                    placeholder="Enter administrator key (somali123)"
-                    value={adminKey}
-                    onChange={(e) => {
-                      setAdminKey(e.target.value);
-                      if (e.target.value === "somali123") {
-                        setRole("agent");
-                        setShowAdminField(true);
-                      }
-                    }}
-                    className="w-full bg-white dark:bg-slate-900 pl-10 pr-4 py-2.5 rounded-xl border border-gray-150 dark:border-slate-800 text-xs outline-none focus:border-rose-500 font-mono text-center text-rose-500"
+                    type="text"
+                    placeholder="e.g. Abdirahman Maxamed"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 transition-all font-sans font-medium"
                   />
                 </div>
-
-                {/* Show form only if admin override key matches */}
-                {adminKey === "somali123" ? (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-855 text-left animate-fade-in">
-                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-lg text-center tracking-wider">
-                      ✓ Access Approved: You can create a new account!
-                    </div>
-
-                    <div className="space-y-1 text-left">
-                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        placeholder="Ahmed Warsame"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1 text-left">
-                        <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          placeholder="name@domain.so"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1 text-left">
-                        <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Phone</label>
-                        <input
-                          type="tel"
-                          placeholder="+252615..."
-                          required
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 text-left">
-                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Privilege Role</label>
-                      <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value as "agent" | "buyer")}
-                        className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs cursor-pointer font-sans"
-                      >
-                        <option value="agent">Licensed Property Agent / Broker</option>
-                        <option value="buyer">Individual Buyer / Home Searcher</option>
-                        <option value="admin">System Administration</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1 text-left">
-                      <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Access Password</label>
-                      <input
-                        type="password"
-                        placeholder="Set account password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-550 text-white font-black text-xs rounded-xl uppercase tracking-wider transition-all shadow cursor-pointer mt-2"
-                    >
-                      Create Account
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("login")}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all block text-center cursor-pointer uppercase tracking-wider"
-                  >
-                    Return to Log In
-                  </button>
-                )}
               </div>
-            </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-755 dark:text-slate-300 uppercase tracking-wider block">Email-ka Saxda ah</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
+                    <input
+                      type="email"
+                      placeholder="magac@domain.com"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 transition-all font-sans font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-755 dark:text-slate-300 uppercase tracking-wider block">Telefoonka (Phone)</label>
+                  <div className="relative group">
+                    <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
+                    <input
+                      type="tel"
+                      placeholder="+25261..."
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 transition-all font-sans font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-755 dark:text-slate-300 uppercase tracking-wider block">Dooro Nooca Xisaabta (Account Role)</label>
+                <div className="relative group">
+                  <Briefcase className="absolute left-3.5 top-3.5 h-4 w-4 text-emerald-500 transition-colors pointer-events-none" />
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as "agent" | "buyer")}
+                    className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 transition-all font-sans font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="agent">🏢 Wakiil guryaha daryeela / Broker & Licensed Agent</option>
+                    <option value="buyer">👤 Macaamiil u baahan guryaha / Buyer & Client</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-755 dark:text-slate-300 uppercase tracking-wider block">Passcode cusub (Password)</label>
+                <div className="relative group">
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
+                  <input
+                    type="password"
+                    placeholder="Abuur passcode adag"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs outline-none focus:border-emerald-505 focus:bg-white dark:focus:bg-slate-900 transition-all font-sans font-medium"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-500 hover:to-teal-555 text-white font-black text-xs rounded-xl uppercase tracking-widest transition-all shadow-md shadow-emerald-500/10 cursor-pointer hover:scale-[1.01] active:scale-95"
+              >
+                📝 Isdiiwaan-gali si toos ah (Register Profile)
+              </button>
+            </form>
           </div>
         )}
 
         {/* Forgot Form Layout */}
         {activeTab === "forgot" && (
-          <form onSubmit={handleForgotSubmit} className="space-y-4">
+          <form onSubmit={handleForgotSubmit} className="space-y-4 text-left animate-fade-in">
             
-            <div className="space-y-1 text-left">
-              <label className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Registered Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
                 <input
                   type="email"
                   placeholder="broker@domain.com"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-3 rounded-xl border border-gray-100 dark:border-slate-800 text-sm outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950/60 pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 font-sans font-medium transition-all"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setActiveTab("login")}
-                className="flex-1 py-3 border border-gray-200 hover:bg-slate-50 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350"
+                className="flex-1 py-3 border border-slate-200 hover:bg-slate-55 dark:border-slate-800 dark:hover:bg-slate-950 rounded-xl text-xs font-extrabold text-slate-600 dark:text-slate-300 cursor-pointer transition-all uppercase tracking-wider"
               >
                 Go Back
               </button>
               <button
                 type="submit"
-                className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl text-xs font-bold uppercase cursor-pointer"
+                className="flex-[2] py-3 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-500 hover:to-teal-555 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition-all text-center"
               >
-                Send Recovery Code
+                Send Bypass Token
               </button>
             </div>
 

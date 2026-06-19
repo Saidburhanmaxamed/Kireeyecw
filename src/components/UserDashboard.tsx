@@ -29,7 +29,8 @@ import {
   Star,
   Search,
   Filter,
-  ArrowLeft
+  ArrowLeft,
+  ShieldAlert
 } from "lucide-react";
 import { Property, User as UserType, Inquiry, AppNotification, PropertyStatus, PropertyCategory, Testimonial, Agency } from "../types";
 import { SOMALI_REGIONS } from "../data";
@@ -449,6 +450,9 @@ export default function UserDashboard({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentUser.role === "agent" && currentUser.approved === false) {
+      return;
+    }
     if (!title || !description || !price || !location) return;
 
     // Filter empty image entries
@@ -664,6 +668,23 @@ export default function UserDashboard({
         {/* Main interactive Tab content Body */}
         <div className={`${activeTab === "add-form" ? "lg:col-span-4" : "lg:col-span-3"} bg-white dark:bg-slate-905 border-2 border-gray-100 dark:border-slate-850 p-6 sm:p-8 rounded-3xl min-h-[500px] shadow-sm transition-all duration-300`}>
           
+          {/* Vetting Warning Overlay for Pending Brokers */}
+          {currentUser.role === "agent" && currentUser.approved === false && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 text-slate-800 dark:text-amber-200 text-xs flex gap-3 items-center border border-amber-500/20 animate-pulse font-medium">
+              <ShieldAlert className="h-6 w-6 text-amber-500 shrink-0" />
+              <div>
+                <strong className="block text-amber-800 dark:text-amber-400 font-extrabold uppercase tracking-wide text-[11px]">
+                  {language === "en" ? "Profile Under Administrative Vetting" : "Xisaabtaadu Waxay Sugaysaa Ogolaansho"}
+                </strong>
+                <p className="mt-0.5 text-slate-500 dark:text-slate-400">
+                  {language === "en"
+                    ? "Your broker credentials are currently pending review by Ibnuburhan Guud. You will be able to upload properties and interact fully once approved."
+                    : "Macluumaadkaaga Broker-nimo waxaa hadda eegaya maamulka sare (Ibnuburhan Guud). Lama ogola inaad guryo ama gawaari cusub soo geliso ilaa laguu ogolaado."}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Feedback overlay */}
           {successFeedback && (
             <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-xs flex gap-2 items-center border border-emerald-100/50 animate-fade-in font-semibold">
@@ -953,6 +974,33 @@ export default function UserDashboard({
 
           {/* TAB 2: PROPERTY POSTING FORM */}
           {activeTab === "add-form" && (
+            currentUser.role === "agent" && currentUser.approved === false ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 py-20 space-y-5 animate-fade-in">
+                <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 animate-pulse">
+                  <ShieldAlert className="h-8 w-8" />
+                </div>
+                <h3 className="font-display font-black text-lg text-slate-900 dark:text-white uppercase tracking-wider">
+                  {language === "en" ? "Account Approval Pending" : "Diiwaan-galintaadu Waxay Sugaysaa Aqbalid"}
+                </h3>
+                <p className="max-w-md text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  {language === "en" 
+                    ? "Your broker account is currently pending administrative vetting. You will be permitted to upload and publish real estate listings once the site administrator Ibnuburhan Guud approves your credential registry."
+                    : "Xisaabtaaga Broker-nimo waxay sugaysaa aqbalidda iyo hubinta maamulka sare. Waxaa laguu fasaxi doonaa inaad guryaha iyo gaadiidka cusub soo geliso marka Ibnuburhan Guud (Admin) uu ogolaado profile-kaaga."}
+                </p>
+                <div className="pt-2">
+                  <span className="px-5 py-2.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 font-extrabold font-mono text-[10px] uppercase rounded-full tracking-widest border border-amber-500/25">
+                    {language === "en" ? "Status: Pending Approval" : "Heerka: Sugaya Ogolaanshaha Admin-ka"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("listings")}
+                  className="mt-4 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold rounded-xl text-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  {language === "en" ? "Back to Dashboard" : "Ku laabo Dashboard-ka"}
+                </button>
+              </div>
+            ) : (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-3">
@@ -1484,6 +1532,7 @@ export default function UserDashboard({
 
               </form>
             </div>
+            )
           )}
 
           {/* TAB 3: BUYERS EMAIL/WHATSAPP INQUIRIES RECEIVED */}

@@ -17,7 +17,6 @@ import {
   LayoutDashboard, 
   ShieldAlert,
   Check,
-  Database,
   Copy,
   CheckCircle2,
   AlertTriangle,
@@ -41,14 +40,6 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   language: Language;
   onToggleLanguage: () => void;
-  dbStatus?: { 
-    supabaseConnected: boolean; 
-    supabaseUrl: string | null; 
-    hasServiceRoleKey: boolean; 
-    sqlSchema: string;
-    tablesExist?: boolean;
-    connectionError?: string | null;
-  } | null;
 }
 
 export default function Header({
@@ -64,14 +55,11 @@ export default function Header({
   activeTab,
   setActiveTab,
   language,
-  onToggleLanguage,
-  dbStatus
+  onToggleLanguage
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [dbStatusModalOpen, setDbStatusModalOpen] = useState(false);
-  const [sqlCopied, setSqlCopied] = useState(false);
 
   const unreadNotifications = notifications.filter(n => !n.read);
   const dict = translations[language];
@@ -146,33 +134,6 @@ export default function Header({
           {/* Action Utilities (Favs, Theme, Notify, Profile) */}
           <div className="hidden lg:flex items-center gap-4">
             
-            {/* Supabase Connectivity Badge */}
-            <button
-              id="supabase-status-badge"
-              onClick={() => setDbStatusModalOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border shadow-md focus:outline-none cursor-pointer hover:scale-105 active:scale-95 ${
-                dbStatus?.supabaseConnected
-                  ? dbStatus.tablesExist
-                    ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40 shadow-emerald-950/20"
-                    : "bg-amber-950/80 text-amber-400 border-amber-500/40 shadow-amber-950/20 animate-pulse"
-                  : "bg-slate-900/60 text-slate-400 border-slate-700/30 shadow-slate-950/20"
-              }`}
-              title="Click to view Supabase database tables and live status"
-            >
-              <Database className={`h-4 w-4 ${
-                dbStatus?.supabaseConnected
-                  ? dbStatus.tablesExist ? "text-emerald-400" : "text-amber-400"
-                  : "text-slate-500"
-              }`} />
-              <span>
-                {dbStatus?.supabaseConnected
-                  ? dbStatus.tablesExist
-                    ? "Supabase Live"
-                    : "Setup Tables"
-                  : "Supabase Fallback"}
-              </span>
-            </button>
-
             {/* Premium Language Pill Toggle */}
             <div className="flex items-center gap-1 bg-emerald-950/60 px-1 py-1 rounded-xl border border-emerald-800/40">
               <button
@@ -284,22 +245,25 @@ export default function Header({
                   <button
                     id="profile-dropdown-trigger"
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-700/50 hover:bg-emerald-905/40 cursor-pointer text-white transition-all"
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 hover:bg-emerald-900/30 dark:border-emerald-500/20 hover:border-emerald-400/40 cursor-pointer text-white transition-all shadow-md active:scale-95 group focus:ring-2 focus:ring-emerald-500/30"
                   >
-                    <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold font-display text-sm shadow-inner">
+                    <div className="relative h-9 w-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-extrabold font-display text-sm shadow-md group-hover:scale-105 transition-transform">
                       {currentUser.name.charAt(0).toUpperCase()}
+                      <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-emerald-950 flex items-center justify-center" title="Verified system access">
+                        <span className="block h-1 w-1 rounded-full bg-white animate-ping"></span>
+                      </span>
                     </div>
-                    <div className="flex flex-col text-left max-w-[100px] overflow-hidden">
-                      <span className="text-xs font-semibold truncate leading-none text-white">{currentUser.name}</span>
-                      <span className="text-[10px] text-emerald-300 uppercase font-mono mt-0.5 leading-none">{currentUser.role}</span>
+                    <div className="flex flex-col text-left max-w-[110px] overflow-hidden">
+                      <span className="text-xs font-black truncate leading-tight tracking-tight text-emerald-50 dark:text-emerald-100 group-hover:text-emerald-300 transition-colors">{currentUser.name}</span>
+                      <span className="text-[9px] text-emerald-300 uppercase font-mono tracking-widest mt-0.5 leading-none font-bold">{currentUser.role === "admin" ? "ADMIN" : "BROKER"}</span>
                     </div>
                   </button>
 
                   {userDropdownOpen && (
-                    <div className="absolute right-0 mt-3 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-800/20 shadow-2xl z-50 p-2 overflow-hidden text-slate-800 dark:text-white">
-                      <div className="px-3 py-2.5 border-b border-gray-50 dark:border-slate-800/80 mb-1">
-                        <p className="text-[10px] text-slate-400 uppercase font-mono">{dict.signedInAs}</p>
-                        <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{currentUser.email}</p>
+                    <div className="absolute right-0 mt-3 w-60 rounded-3xl bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 shadow-2xl z-50 p-2 overflow-hidden text-slate-800 dark:text-white animate-fade-in">
+                      <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/50 rounded-2xl mb-1.5 border border-slate-100 dark:border-slate-850">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest">{dict.signedInAs}</p>
+                        <p className="text-xs font-extrabold text-slate-800 dark:text-white truncate mt-1">{currentUser.email}</p>
                       </div>
 
                       <button
@@ -307,7 +271,7 @@ export default function Header({
                           setActiveTab(currentUser.role === "admin" ? "admin-dash" : "user-dash");
                           setUserDropdownOpen(false);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                        className="w-full flex items-center gap-2.5 px-4.5 py-2.5 rounded-2xl text-left text-xs font-black text-slate-705 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                       >
                         {currentUser.role === "admin" ? (
                           <>
@@ -316,21 +280,23 @@ export default function Header({
                           </>
                         ) : (
                           <>
-                            <LayoutDashboard className="h-4 w-4 text-emerald-600" />
+                            <LayoutDashboard className="h-4 w-4 text-emerald-600 dark:text-emerald-455" />
                             <span>{dict.myDashboard}</span>
                           </>
                         )}
                       </button>
+
+                      <hr className="border-slate-100 dark:border-slate-800/80 my-1 mx-2" />
 
                       <button
                         onClick={() => {
                           onLogout();
                           setUserDropdownOpen(false);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-medium text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                        className="w-full flex items-center gap-2.5 px-4.5 py-2.5 rounded-2xl text-left text-xs font-black text-rose-600 hover:text-rose-700 hover:bg-rose-50/60 dark:hover:bg-rose-950/20 dark:text-rose-400 transition-all cursor-pointer"
                       >
-                        <LogOut className="h-4 w-4" />
-                        <span>{dict.logout}</span>
+                        <LogOut className="h-4 w-4 text-rose-550" />
+                        <span>Sign Out Profile</span>
                       </button>
                     </div>
                   )}
@@ -339,10 +305,11 @@ export default function Header({
                 <button
                   id="navbar-login-btn"
                   onClick={() => onOpenAuthModal("login")}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white text-emerald-950 hover:bg-emerald-50 transition-all duration-200 font-bold text-sm cursor-pointer shadow-md shadow-emerald-950/20"
+                  className="relative flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-emerald-950 hover:text-emerald-900 transition-all duration-300 font-black text-xs uppercase tracking-widest cursor-pointer shadow-lg shadow-emerald-950/20 hover:shadow-xl hover:scale-[1.03] active:scale-95"
                 >
-                  <User className="h-4 w-4 text-emerald-750" />
+                  <User className="h-4 w-4 text-emerald-650" />
                   <span>{dict.brokerLogin}</span>
+                  <div className="absolute -inset-0.5 rounded-2xl bg-white/20 blur opacity-0 hover:opacity-100 transition-opacity"></div>
                 </button>
               )}
             </div>
@@ -462,127 +429,7 @@ export default function Header({
         </div>
       )}
 
-      {/* Supabase Integration Assistant Modal */}
-      {dbStatusModalOpen && dbStatus && (
-        <div id="supabase-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-slate-800 dark:text-slate-100">
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-gray-150 dark:border-slate-800 shadow-2xl animate-scale-up">
-            <div className={`p-6 border-b flex items-start justify-between relative ${dbStatus.supabaseConnected ? "bg-emerald-500/10 border-emerald-500/10" : "bg-amber-500/10 border-amber-500/10"}`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-2xl ${dbStatus.supabaseConnected ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"}`}>
-                  <Database className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-display font-bold text-lg md:text-xl text-slate-900 dark:text-white leading-tight">
-                    Supabase PostgreSQL Settings
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    State manager configuration for durable cloud data storage.
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setDbStatusModalOpen(false)}
-                className="p-1 px-2.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase font-bold text-xs"
-              >
-                Close
-              </button>
-            </div>
 
-            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-gray-150 dark:border-slate-850/60">
-                <h4 className="text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
-                  {dbStatus.supabaseConnected ? (
-                    dbStatus.tablesExist ? (
-                      <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wide text-xs">
-                        <CheckCircle2 className="h-4 w-4" /> Live Supabase Database Connected & Ready
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-amber-500 font-bold uppercase tracking-wide text-xs">
-                        <AlertTriangle className="h-4 w-4 animate-bounce" /> Connection Active (Tables Missing)
-                      </span>
-                    )
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-amber-500 font-bold uppercase tracking-wide text-xs">
-                      <AlertTriangle className="h-4 w-4" /> Database Unconfigured / Falling Back to local memory
-                    </span>
-                  )}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-2">
-                  {dbStatus.supabaseConnected
-                    ? dbStatus.tablesExist
-                      ? `Your app is syncing real-time queries directly into your Cloud Postgres instance. Cloud API target: ${dbStatus.supabaseUrl}`
-                      : `Successfully connected to your Supabase project URL (${dbStatus.supabaseUrl}), but your PostgreSQL database tables are not set up yet! Please copy and execute the SQL migration script below in your Supabase SQL Editor to activate full cloud persistence.`
-                    : "The app is currently running in a fully-functional in-memory cache mode for quick preview. To activate direct Cloud Persistence on both AI Studio (Node Express layout) and Netlify (Static CDN deployment), add these settings:"}
-                </p>
-
-                {/* Unified instructions on environment keys */}
-                <div className="mt-4 space-y-3">
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
-                    <h5 className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                      ⚡ For AI Studio Backend (Custom Express Server)
-                    </h5>
-                    <div className="font-mono text-[10px] text-slate-500 dark:text-slate-400 leading-tight space-y-1">
-                      <div><span className="text-blue-500 font-bold">SUPABASE_URL</span> = your-supabase-project-url</div>
-                      <div><span className="text-blue-500 font-bold">SUPABASE_SERVICE_ROLE_KEY</span> = your-service-role-secret</div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-blue-50/50 dark:bg-slate-900/40 rounded-xl border border-blue-100 dark:border-slate-800 space-y-2">
-                    <h5 className="text-[11px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
-                      🌐 For Netlify Production (Direct Client-Side Link)
-                    </h5>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                      Since Netlify hosts the client bundle as SPA, set these two environment variables under **Netlify Console ➜ Site Configuration ➜ Environment Variables** so the browser connects directly:
-                    </p>
-                    <div className="font-mono text-[10px] text-blue-600 dark:text-blue-400 leading-tight space-y-1">
-                      <div><span className="font-bold">VITE_SUPABASE_URL</span> = your-supabase-project-endpoint</div>
-                      <div><span className="font-bold">VITE_SUPABASE_ANON_KEY</span> = your-public-anon-key</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-xs uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 font-sans">
-                    PostgreSQL Bootstrapping SQL Schema
-                  </h4>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(dbStatus.sqlSchema);
-                      setSqlCopied(true);
-                      setTimeout(() => setSqlCopied(false), 2500);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-sm focus:outline-none cursor-pointer uppercase tracking-wider text-[10px]"
-                  >
-                    {sqlCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    <span>{sqlCopied ? "Copied!" : "Copy SQL"}</span>
-                  </button>
-                </div>
-
-                <div className="p-3 bg-slate-900 text-emerald-400 font-mono text-[10px] rounded-2xl overflow-x-auto max-h-56 leading-relaxed border border-slate-800 select-all scrollbar-thin">
-                  <pre>{dbStatus.sqlSchema}</pre>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2 italic leading-relaxed">
-                  💡 Tip: Open your Supabase Workspace, click on the **SQL Editor**, paste the code block above, and click **Run**. This establishes your PostgreSQL tables instantly so your live database registry is perfectly aligned with the applet UI!
-                </p>
-              </div>
-
-              {dbStatus.supabaseConnected && (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex gap-3 text-emerald-800 dark:text-emerald-250">
-                  <LogoIcon className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-bold text-xs uppercase tracking-wide">Live Hydration Active</h5>
-                    <p className="text-[11px] mt-1 leading-relaxed text-slate-500 dark:text-slate-400">
-                      All new inquiries, property photo submissions, broker registries and testimonials will persist permanently in your live database across all sessions without losing any offline efforts.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
