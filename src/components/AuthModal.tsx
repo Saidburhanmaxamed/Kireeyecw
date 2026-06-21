@@ -247,6 +247,84 @@ export default function AuthModal({
       return;
     }
 
+    // AUTO-RECONCILE SYS-SYNC: Register the user in Supabase Authentication on-the-fly if they aren't already there!
+    // This fully resolves the issue of seed/imported accounts not appearing in the Supabase Auth dashboard.
+    if (matchedUser.email && matchedUser.email.includes("@")) {
+      try {
+        console.log("[Supabase Auth Auto-Sync] Reconciling '" + matchedUser.email + "' with Supabase Authentication backend...");
+        const syncRes = await fetch("/api/users/sync-auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: matchedUser.email.trim(),
+            password: password.trim(),
+            name: matchedUser.name,
+            phone: matchedUser.phone,
+            role: matchedUser.role,
+            approved: matchedUser.approved !== false
+          })
+        }).then(r => r.json()).catch(() => null);
+
+        let sUserId = null;
+        if (syncRes && syncRes.success && (syncRes.userId || (syncRes.user && syncRes.user.id))) {
+          sUserId = syncRes.userId || syncRes.user.id;
+          console.log("[Supabase Auth Auto-Sync] Reconciled successfully via server-side sync-auth UID:", sUserId);
+        } else {
+          // Client-side signUp fallback
+          const { data: authSignUpData, error: authSignUpError } = await supabase.auth.signUp({
+            email: matchedUser.email.trim(),
+            password: password.trim(),
+            options: {
+              data: {
+                name: matchedUser.name,
+                phone: matchedUser.phone,
+                role: matchedUser.role,
+                approved: matchedUser.approved !== false
+              }
+            }
+          });
+          if (!authSignUpError && authSignUpData?.user) {
+            sUserId = authSignUpData.user.id;
+          }
+        }
+
+        if (sUserId) {
+          // Re-align database record and localStorage ID with the real Supabase Auth UID
+          if (matchedUser.id !== sUserId) {
+            const oldId = matchedUser.id;
+            matchedUser.id = sUserId;
+            
+            // Sync to localStorage
+            const currentUsersRaw = localStorage.getItem("sre_registered_users");
+            if (currentUsersRaw) {
+              const uList = JSON.parse(currentUsersRaw);
+              const idx = uList.findIndex((u: any) => u.email.toLowerCase() === matchedUser.email.toLowerCase());
+              if (idx !== -1) {
+                uList[idx] = matchedUser;
+                localStorage.setItem("sre_registered_users", JSON.stringify(uList));
+              }
+            }
+            
+            // Re-sync backend database tables
+            await fetch(`/api/users/${oldId}`, { method: "DELETE" }).catch(() => {});
+            await fetch("/api/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(matchedUser)
+            }).catch(() => {});
+          }
+
+          // Try to perform a client-side login session immediately so supabase.auth has active state
+          await supabase.auth.signInWithPassword({
+            email: matchedUser.email.trim(),
+            password: password.trim()
+          }).catch(() => {});
+        }
+      } catch (syncException) {
+        console.error("[Supabase Auth Auto-Sync] Failed to synchronize auth credentials:", syncException);
+      }
+    }
+
     // Login approval match!
     setFeedback({
       type: "success",
@@ -273,26 +351,53 @@ export default function AuthModal({
     const assignedRole = role; // "agent" or "buyer" as selected
     let generatedUserId = "registered-" + Math.random().toString(36).substr(2, 9);
 
-    // 1. ATTEMPT SECURE SUPABASE AUTH SIGNUP
+    // 1. ATTEMPT SECURE SUPABASE AUTH SIGNUP THROUGH THE ADMIN SYNC ENDPOINT FIRST
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password.trim(),
-        options: {
-          data: {
-            name: name.trim(),
-            phone: phone.trim(),
-            role: assignedRole,
-            approved: assignedRole !== "agent"
-          }
-        }
-      });
+      console.log("[Supabase Auth] Syncing register user via server-side admin sync-auth...");
+      const syncRes = await fetch("/api/users/sync-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+          name: name.trim(),
+          phone: phone.trim(),
+          role: assignedRole,
+          approved: assignedRole !== "agent"
+        })
+      }).then(r => r.json()).catch(() => null);
 
-      if (!authError && authData?.user) {
-        console.log("[Supabase Auth] Successfully registered secure profile:", authData.user.id);
-        generatedUserId = authData.user.id;
+      if (syncRes && syncRes.success && (syncRes.userId || (syncRes.user && syncRes.user.id))) {
+        generatedUserId = syncRes.userId || syncRes.user.id;
+        console.log("[Supabase Auth] Successfully registered secure profile via server-side sync-auth:", generatedUserId);
+
+        // Explicitly perform client sign-in to establish an active browser session
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim()
+        }).catch(() => {});
       } else {
-        console.warn("[Supabase Auth] Info fallback. Storing locally as failover:", authError?.message);
+        // Fallback to client-side signUp if backend endpoint is unavailable
+        console.info("[Supabase Auth] Server sync-auth was not fully successful, calling client signUp...");
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: password.trim(),
+          options: {
+            data: {
+              name: name.trim(),
+              phone: phone.trim(),
+              role: assignedRole,
+              approved: assignedRole !== "agent"
+            }
+          }
+        });
+
+        if (!authError && authData?.user) {
+          console.log("[Supabase Auth] Successfully registered secure profile via client signUp:", authData.user.id);
+          generatedUserId = authData.user.id;
+        } else {
+          console.warn("[Supabase Auth] Info fallback. Storing locally as failover:", authError?.message);
+        }
       }
     } catch (authException) {
       console.error("[Supabase Auth] Sign up exception:", authException);

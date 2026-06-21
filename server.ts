@@ -450,6 +450,42 @@ app.get("/api/users", async (req: Request, res: Response) => {
   res.json(local.users || []);
 });
 
+app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
+  const { email, password, name, phone, role, approved } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    console.log(`[Supabase Admin Auth] Syncing user ${email} directly to Supabase Auth console...`);
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: email.trim(),
+      password: password.trim(),
+      email_confirm: true,
+      user_metadata: {
+        name: name || email.split("@")[0],
+        phone: phone || "+252610000000",
+        role: role || "agent",
+        approved: approved !== false
+      }
+    });
+
+    if (error) {
+      if (error.message.includes("already") || error.message.includes("exists") || error.message.includes("unique")) {
+        console.log(`[Supabase Admin Auth] Status - User ${email} already registered.`);
+        return res.json({ success: true, alreadyExists: true });
+      }
+      throw error;
+    }
+
+    console.log(`[Supabase Admin Auth] Success. Created and verified user ${email} (ID: ${data.user?.id})`);
+    return res.json({ success: true, userId: data.user?.id, user: data.user });
+  } catch (err: any) {
+    console.warn("[Supabase Admin Auth Warning] Admin client was not authorized or encountered an error:", err.message || err);
+    return res.status(500).json({ error: err.message || "Failed to sync auth user via backend admin API" });
+  }
+});
+
 app.post("/api/users", async (req: Request, res: Response) => {
   const userObj = req.body;
   try {
