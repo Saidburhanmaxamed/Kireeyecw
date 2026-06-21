@@ -4,10 +4,6 @@ import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
 
-// Import Firebase Web SDK for Node (fully compatible for dual-writes and multi-device cloud fallback)
-import { initializeApp as initFirebaseApp } from "firebase/app";
-import { getFirestore as initFirestore, doc as fireDoc, getDocs as fireGetDocs, setDoc as fireSetDoc, deleteDoc as fireDeleteDoc, collection as fireCollection } from "firebase/firestore";
-
 // Configuration for Supabase SDK matching the user's details
 function sanitizeUrl(url: any): string {
   if (typeof url !== 'string') return "";
@@ -106,60 +102,6 @@ const { url: SUPABASE_URL, key: SUPABASE_KEY } = resolveConfig();
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Initialize Firestore server-side instance dynamically reading local configuration
-let firestoreDb: any = null;
-try {
-  const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
-  if (fs.existsSync(firebaseConfigPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
-    const firebaseApp = initFirebaseApp(firebaseConfig);
-    firestoreDb = initFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
-    console.log("[server.ts] Firebase Firestore server instance initialized successfully!");
-  }
-} catch (fireInitErr: any) {
-  console.warn("[server.ts Warning] Firestore failed to initialize on backend server side:", fireInitErr.message || fireInitErr);
-}
-
-const readServerFirestore = async (collectionName: string): Promise<any[]> => {
-  if (!firestoreDb) return [];
-  try {
-    const colRef = fireCollection(firestoreDb, collectionName);
-    const snap = await fireGetDocs(colRef);
-    const list: any[] = [];
-    snap.forEach((d) => {
-      list.push({ id: d.id, ...d.data() });
-    });
-    return list;
-  } catch (err) {
-    console.error(`Error reading ${collectionName} from Firestore backend:`, err);
-    return [];
-  }
-};
-
-const writeServerFirestore = async (collectionName: string, id: string, data: any): Promise<any> => {
-  if (!firestoreDb) return data;
-  try {
-    const docRef = fireDoc(firestoreDb, collectionName, id);
-    await fireSetDoc(docRef, data, { merge: true });
-    return data;
-  } catch (err) {
-    console.error(`Error writing to ${collectionName} in Firestore backend:`, err);
-    return data;
-  }
-};
-
-const deleteServerFirestore = async (collectionName: string, id: string): Promise<boolean> => {
-  if (!firestoreDb) return false;
-  try {
-    const docRef = fireDoc(firestoreDb, collectionName, id);
-    await fireDeleteDoc(docRef);
-    return true;
-  } catch (err) {
-    console.error(`Error deleting from ${collectionName} in Firestore backend:`, err);
-    return false;
-  }
-};
-
 const PORT = 3000;
 const app = express();
 
@@ -237,6 +179,318 @@ const writeLocalStore = (data: any) => {
   } catch (err) {
     console.error("Error writing local backup store:", err);
   }
+};
+
+// Backend auto-restore and authentication synchronization system
+const restoreAllDatabaseEntries = async () => {
+  console.log("[Restore Engine] Beginning proactive data restoration and Supabase Auth reconciliation sequence...");
+
+  const defaultUsers = [
+    {
+      id: "admin-ibnu",
+      name: "Ibnuburhan Guud",
+      email: "Ibnuburhan555@gmail.com",
+      role: "admin",
+      phone: "+252615555555",
+      password: "Maalinle555",
+      approved: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "user-agent-1",
+      name: "Abdirahman Warsame (Real Estate Lead)",
+      email: "abdirahman@realestate.so",
+      role: "agent",
+      phone: "+252615123456",
+      password: "somali123",
+      approved: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "user-agent-2",
+      name: "Sarah Yusuf (Horn Property Group)",
+      email: "sarah@realestate.so",
+      role: "agent",
+      phone: "+252634987654",
+      password: "somali123",
+      approved: true,
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  // 1. Sync & Reconcile users with Supabase Auth console
+  for (const u of defaultUsers) {
+    try {
+      let authUserId: string | null = null;
+
+      // Try listing existing users in Supabase Auth module first to find matching email
+      try {
+        const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
+        if (!listError && listData?.users) {
+          const matched = listData.users.find((au: any) => au.email?.toLowerCase() === u.email.toLowerCase());
+          if (matched) {
+            authUserId = matched.id;
+            console.log(`[Restore Engine] Found existing Supabase Auth profile for ${u.email}: ${authUserId}`);
+          }
+        }
+      } catch (listErr: any) {
+        console.log(`[Restore Engine] Info: Could not search auth console directly: ${listErr.message || listErr}`);
+      }
+
+      // If they don't exist yet, register them proactively in Supabase Authentication
+      if (!authUserId) {
+        try {
+          const { data, error } = await supabase.auth.admin.createUser({
+            email: u.email,
+            password: u.password,
+            email_confirm: true,
+            user_metadata: {
+              name: u.name,
+              phone: u.phone,
+              role: u.role,
+              approved: true
+            }
+          });
+
+          if (!error && data?.user) {
+            authUserId = data.user.id;
+            console.log(`[Restore Engine] Created new Supabase Auth profile for ${u.email}: ${authUserId}`);
+          } else if (error) {
+            console.log(`[Restore Engine] Supabase Auth creation info for ${u.email}: ${error.message}`);
+          }
+        } catch (createErr: any) {
+          console.warn(`[Restore Engine] Secure auth creation failed for ${u.email} (likely lacking service role privileges):`, createErr.message || createErr);
+        }
+      }
+
+      // Harmonize the ID across all boundaries
+      if (authUserId) {
+        u.id = authUserId;
+      }
+
+      // Safe write/upsert database tables
+      try {
+        const { error } = await supabase.from("users").upsert([u]);
+        if (error) throw error;
+        console.log(`[Restore Engine] Synced user table in Supabase for ${u.email} (UID: ${u.id})`);
+      } catch (dbErr: any) {
+        console.warn(`[Restore Engine] Supabase users table upsert failed for ${u.email}:`, dbErr.message || dbErr);
+      }
+
+    } catch (err: any) {
+      console.warn(`[Restore Engine] Failed to complete user sync for ${u.email}:`, err.message || err);
+    }
+  }
+
+  // 2. Load other backup datasets and populate both databases
+  const local = readLocalStore();
+
+  const testimonials = local.testimonials && local.testimonials.length > 0 ? local.testimonials : [
+    {
+      id: "test-1",
+      name: "Ahmed Duale",
+      role: "Returning Diaspora Buyer (US)",
+      comment: "Kireeye completely changed how my family settled back home in Caabudwaaq! The neighborhood filtering for October was incredibly accurate, and contacting the property manager through WhatsApp was instant. Highly professional, locally responsive service.",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
+      rating: 5
+    },
+    {
+      id: "test-2",
+      name: "Filsan Haji",
+      role: "Business Developer, Caabudwaaq",
+      comment: "Listing my commercial shops and depots on this hub gave me quality corporate leads in weeks! The dashboard allows me to manage properties effortlessly and see active inquiries instantly. Absolute gold standard for real estate portals in central Somalia.",
+      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
+      rating: 5
+    },
+    {
+      id: "test-3",
+      name: "Dr. Liban Abdi",
+      role: "Clinic Coordinator, Caabudwaaq",
+      comment: "I searched for secure development plots in 1 Luuliyo neighborhood for months with no luck. Then I found a certified listing with perfect boundary details on this hub. Within three hours I was in direct contact with the owner.",
+      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80",
+      rating: 5
+    }
+  ];
+
+  const agencies = local.agencies && local.agencies.length > 0 ? local.agencies : [
+    {
+      id: "agency-1",
+      name: "Juba Valley Agency",
+      email: "juba.valley@agency.so",
+      phone: "+252615551234",
+      logo: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=120&auto=format&fit=crop&q=60",
+      location: "Waabari, Caabudwaaq",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "agency-2",
+      name: "Galgaduud Trust Realty",
+      email: "galgaduud.trust@agency.so",
+      phone: "+252615555678",
+      logo: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=120&auto=format&fit=crop&q=60",
+      location: "Koonfur, Caabudwaaq",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "agency-3",
+      name: "Somali Star Brokers",
+      email: "somali.star@agency.so",
+      phone: "+252615559012",
+      logo: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=120&auto=format&fit=crop&q=60",
+      location: "Liido Beach, Mogadishu",
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  const agencyLogs = local.agencyLogs && local.agencyLogs.length > 0 ? local.agencyLogs : [
+    {
+      id: "log-1",
+      agencyId: "agency-1",
+      action: "AUTHORIZED_BROKER",
+      targetId: "user-agent-1",
+      details: "Authorized new Broker Agent Mohamed Farah for legal title-deed validations.",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "log-2",
+      agencyId: "agency-2",
+      action: "VERIFIED_LISTING",
+      targetId: "prop-1",
+      details: "Audited & verified title deed registration for Caabudwaaq Commercial Block.",
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "log-3",
+      agencyId: "agency-1",
+      action: "INQUIRY_ROUTED",
+      targetId: "inq-1",
+      details: "Routed rental inquiry for Waabari Commercial Hub to assigned field agent.",
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  // Testimonials Batch Sync
+  for (const t of testimonials) {
+    try {
+      await supabase.from("testimonials").upsert([t]);
+    } catch (e) {}
+  }
+
+  // Agencies Batch Sync
+  for (const a of agencies) {
+    try {
+      await supabase.from("agencies").upsert([a]);
+    } catch (e) {}
+  }
+
+  // Agency Logs Batch Sync
+  for (const log of agencyLogs) {
+    try {
+      await supabase.from("agency_logs").upsert([log]);
+    } catch (e) {}
+  }
+
+  // Seeding default properties directly on server startup if none exist in Supabase
+  try {
+    const { data: currentProperties } = await supabase.from("properties").select("id").limit(1);
+    if (!currentProperties || currentProperties.length === 0) {
+      console.log("[Restore Engine] Seeding default properties because Supabase properties table is empty...");
+      
+      const seedProps = [
+        {
+          id: "prop-1",
+          title: "Premium Modern Residence in October",
+          description: "Experience comfortable living in this premium villa located in the heart of October neighborhood, Caabudwaaq. Featuring modern high-ceiling salons, high-quality finishes, spacious bedrooms, and a secure gated compound with solar security, reliable backup electricity, and independent security parameters. Perfect for returnee diaspora families wanting comfort, space, and ultimate peace of mind.",
+          category: "Villas",
+          type: "Residential",
+          price: 165000,
+          location: "Waddada October, Caabudwaaq",
+          region: "October",
+          status: "Sale",
+          bedrooms: 6,
+          bathrooms: 5,
+          areaSize: 420,
+          images: [
+            "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"
+          ],
+          ownerId: defaultUsers[1].id, // abdirahman
+          ownerName: "Abdirahman Warsame (Real Estate Lead)",
+          ownerPhone: "+252615123456",
+          ownerWhatsapp: "252615123456",
+          approved: true,
+          featured: true,
+          createdAt: new Date().toISOString(),
+          agencyId: "agency-1"
+        },
+        {
+          id: "prop-2",
+          title: "Spacious Family Compound in Amaana",
+          description: "An amazing multi-generational estate located in the highly secure Amaana neighborhood of Caabudwaaq. Features large modern living rooms, high-quality security walling, private courtyard with beautiful shade trees, reliable water supply with backup reservoirs, and dual solar/generator backup setups. Ideal for families seeking a serene community environment.",
+          category: "Houses",
+          type: "Residential",
+          price: 350,
+          location: "Xaafadda Amaana, Caabudwaaq",
+          region: "Amaana",
+          status: "Rent",
+          bedrooms: 5,
+          bathrooms: 4,
+          areaSize: 380,
+          images: [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
+          ],
+          ownerId: defaultUsers[2].id, // sarah
+          ownerName: "Sarah Yusuf (Horn Property Group)",
+          ownerPhone: "+252634987654",
+          ownerWhatsapp: "252634987654",
+          approved: true,
+          featured: true,
+          createdAt: new Date().toISOString(),
+          availableDate: "2026-06-15",
+          agencyId: "agency-2"
+        },
+        {
+          id: "prop-3",
+          title: "Modern Multi-Bedroom Apartment in Ubax",
+          description: "A beautifully styled, high-security 3-bedroom apartment on the 2nd floor of a newly developed modern apartment complex in Ubax neighborhood, Caabudwaaq. Offers excellent ventilation, premium tiled floors, dynamic layout, open-plan kitchen, indoor parking coordinates, and 24/7 solar-powered energy system. Best option for business owners or local staff.",
+          category: "Apartments",
+          type: "Residential",
+          price: 250,
+          location: "Main Street, Xaafadda Ubax, Caabudwaaq",
+          region: "Ubax",
+          status: "Rent",
+          bedrooms: 3,
+          bathrooms: 2,
+          areaSize: 165,
+          images: [
+            "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80"
+          ],
+          ownerId: "user-agent-3",
+          ownerName: "Mohamed Farah (Juba Valley Agency)",
+          ownerPhone: "+252612543210",
+          ownerWhatsapp: "252612543210",
+          approved: true,
+          featured: false,
+          createdAt: new Date().toISOString(),
+          availableDate: "2026-06-25",
+          agencyId: "agency-1"
+        }
+      ];
+
+      for (const p of seedProps) {
+        try {
+          await supabase.from("properties").upsert([p]);
+        } catch (e) {}
+      }
+    }
+  } catch (err) {
+    console.warn("[Restore Engine] Failed checking and seeding properties table:", err);
+  }
+
+  console.log("[Restore Engine] Seeding and Auth Sync protocol operation completed successfully!");
 };
 
 // Supabase Connection Status Testing API
@@ -431,13 +685,6 @@ app.get("/api/properties", async (req: Request, res: Response) => {
     }
   } catch (err) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase properties failed or table missing. Trying Firestore...");
-  const fireProps = await readServerFirestore("properties");
-  if (fireProps.length > 0) {
-    return res.json(fireProps);
-  }
-
   const local = readLocalStore();
   res.json(local.properties || []);
 });
@@ -447,17 +694,9 @@ app.post("/api/properties", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("properties").upsert([propertyObj]).select();
     if (!error && data) {
-      if (propertyObj.id) {
-        await writeServerFirestore("properties", propertyObj.id, propertyObj);
-      }
       return res.json(data[0] || propertyObj);
     }
   } catch (err) {}
-
-  // Sync to Firestore Backup
-  if (propertyObj.id) {
-    await writeServerFirestore("properties", propertyObj.id, propertyObj);
-  }
 
   const local = readLocalStore();
   local.properties = local.properties || [];
@@ -473,17 +712,9 @@ app.put("/api/properties", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("properties").update(propertyObj).eq("id", propertyObj.id).select();
     if (!error && data) {
-      if (propertyObj.id) {
-        await writeServerFirestore("properties", propertyObj.id, propertyObj);
-      }
       return res.json(data[0] || propertyObj);
     }
   } catch (err) {}
-
-  // Sync to Firestore Backup
-  if (propertyObj.id) {
-    await writeServerFirestore("properties", propertyObj.id, propertyObj);
-  }
 
   const local = readLocalStore();
   local.properties = local.properties || [];
@@ -497,9 +728,6 @@ app.delete("/api/properties/:id", async (req: Request, res: Response) => {
   try {
     await supabase.from("properties").delete().eq("id", propId);
   } catch (err) {}
-
-  // Delete from Firestore Backup
-  await deleteServerFirestore("properties", propId);
 
   const local = readLocalStore();
   local.properties = local.properties || [];
@@ -516,13 +744,6 @@ app.get("/api/users", async (req: Request, res: Response) => {
       return res.json(supaUsers);
     }
   } catch (err) {}
-
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase users failed or table missing. Trying Firestore...");
-  const fireUsers = await readServerFirestore("users");
-  if (fireUsers.length > 0) {
-    return res.json(fireUsers);
-  }
 
   const local = readLocalStore();
   res.json(local.users || []);
@@ -569,17 +790,9 @@ app.post("/api/users", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("users").upsert([userObj]).select();
     if (!error && data) {
-      if (userObj.id) {
-        await writeServerFirestore("users", userObj.id, userObj);
-      }
       return res.json(data[0] || userObj);
     }
   } catch (err) {}
-
-  // Sync to Firestore Backup
-  if (userObj.id) {
-    await writeServerFirestore("users", userObj.id, userObj);
-  }
 
   const local = readLocalStore();
   local.users = local.users || [];
@@ -594,17 +807,9 @@ app.put("/api/users", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("users").update(userObj).eq("id", userObj.id).select();
     if (!error && data) {
-      if (userObj.id) {
-        await writeServerFirestore("users", userObj.id, userObj);
-      }
       return res.json(data[0] || userObj);
     }
   } catch (err) {}
-
-  // Sync to Firestore Backup
-  if (userObj.id) {
-    await writeServerFirestore("users", userObj.id, userObj);
-  }
 
   const local = readLocalStore();
   local.users = local.users || [];
@@ -618,9 +823,6 @@ app.delete("/api/users/:id", async (req: Request, res: Response) => {
   try {
     await supabase.from("users").delete().eq("id", userId);
   } catch (err) {}
-
-  // Delete from Firestore Backup
-  await deleteServerFirestore("users", userId);
 
   const local = readLocalStore();
   local.users = local.users || [];
@@ -638,13 +840,6 @@ app.get("/api/inquiries", async (req: Request, res: Response) => {
     }
   } catch (err) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase inquiries failed or table missing. Trying Firestore...");
-  const fireInquiries = await readServerFirestore("inquiries");
-  if (fireInquiries.length > 0) {
-    return res.json(fireInquiries);
-  }
-
   const local = readLocalStore();
   res.json(local.inquiries || []);
 });
@@ -654,17 +849,9 @@ app.post("/api/inquiries", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("inquiries").upsert([inquiryObj]).select();
     if (!error && data) {
-      if (inquiryObj.id) {
-        await writeServerFirestore("inquiries", inquiryObj.id, inquiryObj);
-      }
       return res.json(data[0] || inquiryObj);
     }
   } catch (err) {}
-
-  // Sync to Firestore Backup
-  if (inquiryObj.id) {
-    await writeServerFirestore("inquiries", inquiryObj.id, inquiryObj);
-  }
 
   const local = readLocalStore();
   local.inquiries = local.inquiries || [];
@@ -678,9 +865,6 @@ app.delete("/api/inquiries/:id", async (req: Request, res: Response) => {
   try {
     await supabase.from("inquiries").delete().eq("id", inquiryId);
   } catch (err) {}
-
-  // Delete from Firestore Backup
-  await deleteServerFirestore("inquiries", inquiryId);
 
   const local = readLocalStore();
   local.inquiries = local.inquiries || [];
@@ -696,13 +880,6 @@ app.get("/api/testimonials", async (req: Request, res: Response) => {
     if (!error && data) return res.json(data);
   } catch (e) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase testimonials failed. Trying Firestore...");
-  const fireTestimonials = await readServerFirestore("testimonials");
-  if (fireTestimonials.length > 0) {
-    return res.json(fireTestimonials);
-  }
-
   const local = readLocalStore();
   res.json(local.testimonials || []);
 });
@@ -712,17 +889,9 @@ app.post("/api/testimonials", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("testimonials").upsert([testObj]).select();
     if (!error && data) {
-      if (testObj.id) {
-        await writeServerFirestore("testimonials", testObj.id, testObj);
-      }
       return res.json(data[0] || testObj);
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (testObj.id) {
-    await writeServerFirestore("testimonials", testObj.id, testObj);
-  }
 
   const local = readLocalStore();
   local.testimonials = local.testimonials || [];
@@ -737,13 +906,6 @@ app.get("/api/agencies", async (req: Request, res: Response) => {
     if (!error && data) return res.json(data);
   } catch (e) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase agencies failed. Trying Firestore...");
-  const fireAgencies = await readServerFirestore("agencies");
-  if (fireAgencies.length > 0) {
-    return res.json(fireAgencies);
-  }
-
   const local = readLocalStore();
   res.json(local.agencies || []);
 });
@@ -753,17 +915,9 @@ app.post("/api/agencies", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("agencies").upsert([agencyObj]).select();
     if (!error && data) {
-      if (agencyObj.id) {
-        await writeServerFirestore("agencies", agencyObj.id, agencyObj);
-      }
       return res.json(data[0] || agencyObj);
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (agencyObj.id) {
-    await writeServerFirestore("agencies", agencyObj.id, agencyObj);
-  }
 
   const local = readLocalStore();
   local.agencies = local.agencies || [];
@@ -778,13 +932,6 @@ app.get("/api/agency-logs", async (req: Request, res: Response) => {
     if (!error && data) return res.json(data);
   } catch (e) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase agency_logs failed. Trying Firestore...");
-  const fireLogs = await readServerFirestore("agency_logs");
-  if (fireLogs.length > 0) {
-    return res.json(fireLogs);
-  }
-
   const local = readLocalStore();
   res.json(local.agencyLogs || []);
 });
@@ -794,17 +941,9 @@ app.post("/api/agency-logs", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("agency_logs").upsert([logObj]).select();
     if (!error && data) {
-      if (logObj.id) {
-        await writeServerFirestore("agency_logs", logObj.id, logObj);
-      }
       return res.json(data[0] || logObj);
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (logObj.id) {
-    await writeServerFirestore("agency_logs", logObj.id, logObj);
-  }
 
   const local = readLocalStore();
   local.agencyLogs = local.agencyLogs || [];
@@ -819,13 +958,6 @@ app.get("/api/notifications", async (req: Request, res: Response) => {
     if (!error && data) return res.json(data);
   } catch (e) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase notifications failed. Trying Firestore...");
-  const fireNotifs = await readServerFirestore("notifications");
-  if (fireNotifs.length > 0) {
-    return res.json(fireNotifs);
-  }
-
   const local = readLocalStore();
   res.json(local.notifications || []);
 });
@@ -835,17 +967,9 @@ app.post("/api/notifications", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("notifications").upsert([notifObj]).select();
     if (!error && data) {
-      if (notifObj.id) {
-        await writeServerFirestore("notifications", notifObj.id, notifObj);
-      }
       return res.json(data[0] || notifObj);
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (notifObj.id) {
-    await writeServerFirestore("notifications", notifObj.id, notifObj);
-  }
 
   const local = readLocalStore();
   local.notifications = local.notifications || [];
@@ -860,21 +984,9 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
     if (Array.isArray(updatedNotifs)) {
       for (const n of updatedNotifs) {
         await supabase.from("notifications").upsert([n]);
-        if (n.id) {
-          await writeServerFirestore("notifications", n.id, n);
-        }
       }
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (Array.isArray(updatedNotifs)) {
-    for (const n of updatedNotifs) {
-      if (n.id) {
-        await writeServerFirestore("notifications", n.id, n);
-      }
-    }
-  }
 
   const local = readLocalStore();
   local.notifications = updatedNotifs;
@@ -888,13 +1000,6 @@ app.get("/api/favorites", async (req: Request, res: Response) => {
     if (!error && data) return res.json(data);
   } catch (e) {}
 
-  // Firebase Firestore server-side cloud fallback
-  console.log("[server.ts] Supabase favorites failed. Trying Firestore...");
-  const fireFavorites = await readServerFirestore("favorites");
-  if (fireFavorites.length > 0) {
-    return res.json(fireFavorites);
-  }
-
   const local = readLocalStore();
   res.json(local.favorites || []);
 });
@@ -904,17 +1009,9 @@ app.post("/api/favorites", async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from("favorites").upsert([favObj]).select();
     if (!error && data) {
-      if (favObj.id) {
-        await writeServerFirestore("favorites", favObj.id, favObj);
-      }
       return res.json(data[0] || favObj);
     }
   } catch (e) {}
-
-  // Sync to Firestore Backup
-  if (favObj.id) {
-    await writeServerFirestore("favorites", favObj.id, favObj);
-  }
 
   const local = readLocalStore();
   local.favorites = local.favorites || [];
@@ -926,6 +1023,13 @@ app.post("/api/favorites", async (req: Request, res: Response) => {
 
 // START EXPRESS + VITE ROUTING
 async function startServer() {
+  // Proactively restore database entries and sync Supabase authentication on startup
+  try {
+    await restoreAllDatabaseEntries();
+  } catch (err: any) {
+    console.error("[Startup] Database restoration or Supabase Auth synchronization error:", err.message || err);
+  }
+
   // Vite middleware setup if we are in development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

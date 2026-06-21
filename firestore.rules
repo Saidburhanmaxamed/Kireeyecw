@@ -33,5 +33,20 @@ service cloud.firestore {
     match /testimonials/{testimonialId} {
       allow read, write: if true;
     }
+
+    // 6. Agencies Collection
+    match /agencies/{agencyId} {
+      allow read, write: if true;
+    }
+
+    // 7. Favorites Collection
+    match /favorites/{favoriteId} {
+      allow read, write: if true;
+    }
+
+    // 8. Agency Logs Collection
+    match /agency_logs/{logId} {
+      allow read, write: if true;
+    }
   }
 }

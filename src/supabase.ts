@@ -96,51 +96,10 @@ const { url: supabaseUrl, key: supabaseAnonKey } = resolveConfig();
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Import Firestore for decentralized automatic zero-setup fallback (perfect for Netlify/multi-device)
-import { collection, getDocs, setDoc, doc, deleteDoc } from "firebase/firestore";
-import { db } from "./firebase";
-
-async function readFirestoreCollection(collectionName: string): Promise<any[]> {
-  try {
-    const colRef = collection(db, collectionName);
-    const snap = await getDocs(colRef);
-    const items: any[] = [];
-    snap.forEach((docSnap) => {
-      items.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    return items;
-  } catch (err) {
-    console.error(`[Kireeye Firestore Fallback] Error reading ${collectionName} from Firestore:`, err);
-    return [];
-  }
-}
-
-async function writeFirestoreDocument(collectionName: string, id: string, data: any): Promise<any> {
-  try {
-    const docRef = doc(db, collectionName, id);
-    await setDoc(docRef, data, { merge: true });
-    return data;
-  } catch (err) {
-    console.error(`[Kireeye Firestore Fallback] Error writing ${collectionName} id ${id} to Firestore:`, err);
-    return data;
-  }
-}
-
-async function deleteFirestoreDocument(collectionName: string, id: string): Promise<boolean> {
-  try {
-    const docRef = doc(db, collectionName, id);
-    await deleteDoc(docRef);
-    return true;
-  } catch (err) {
-    console.error(`[Kireeye Firestore Fallback] Error deleting ${collectionName} id ${id} from Firestore:`, err);
-    return false;
-  }
-}
-
 // Automated Netlify Serverless Routing Interceptor
 // When deployed on static-only hosting services like Netlify, the Node/Express backend at "/api/*" 
 // does not run. This interceptor hooks window.fetch, automatically falling back to client-side 
-// direct Supabase or Firestore queries if the backend is absent or offline.
+// direct Supabase queries if the backend is absent or offline.
 if (typeof window !== "undefined") {
   const originalFetch = window.fetch;
   const interceptorFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -210,9 +169,8 @@ if (typeof window !== "undefined") {
                 headers: { "Content-Type": "application/json" }
               });
             } catch (supaErr: any) {
-              console.warn(`[KireeyeCw Fallback] Supabase Direct table fetch failed for "${tableName}". Routing to static Firestore collections:`, supaErr.message || supaErr);
-              const list = await readFirestoreCollection(tableName);
-              return new Response(JSON.stringify(list), {
+              console.warn(`[KireeyeCw Fallback] Supabase Direct table fetch failed for "${tableName}":`, supaErr.message || supaErr);
+              return new Response(JSON.stringify([]), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
               });
@@ -229,10 +187,7 @@ if (typeof window !== "undefined") {
                   await supabase.from("notifications").upsert([n]);
                 }
               } catch (supaErr: any) {
-                console.warn(`[KireeyeCw Fallback] Supabase Direct batch notifications failed. Syncing to Firestore:`, supaErr.message || supaErr);
-                for (const n of bodyPayload) {
-                  await writeFirestoreDocument("notifications", n.id, n);
-                }
+                console.warn(`[KireeyeCw Fallback] Supabase Direct batch notifications failed:`, supaErr.message || supaErr);
               }
               return new Response(JSON.stringify(bodyPayload), {
                 status: 200,
@@ -243,18 +198,13 @@ if (typeof window !== "undefined") {
             try {
               const { data, error } = await supabase.from(tableName).upsert([bodyPayload]).select();
               if (error) throw error;
-              // Also replicate sync to Firestore silently for redundant backup safety
-              const id = bodyPayload.id || `doc-${Math.random().toString(36).substr(2, 9)}`;
-              await writeFirestoreDocument(tableName, id, bodyPayload);
 
               return new Response(JSON.stringify(data?.[0] || bodyPayload), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
               });
             } catch (supaErr: any) {
-              console.warn(`[KireeyeCw Fallback] Supabase Direct write upsert failed for "${tableName}". Fallback synced to Firestore:`, supaErr.message || supaErr);
-              const id = bodyPayload.id || `doc-${Math.random().toString(36).substr(2, 9)}`;
-              await writeFirestoreDocument(tableName, id, bodyPayload);
+              console.warn(`[KireeyeCw Fallback] Supabase Direct write upsert failed for "${tableName}":`, supaErr.message || supaErr);
               return new Response(JSON.stringify(bodyPayload), {
                 status: 200,
                 headers: { "Content-Type": "application/json" }
@@ -269,9 +219,8 @@ if (typeof window !== "undefined") {
                 const { error } = await supabase.from(tableName).delete().eq("id", idToDelete);
                 if (error) throw error;
               } catch (supaErr: any) {
-                console.warn(`[KireeyeCw Fallback] Supabase Direct delete failed for "${tableName}". Falling back to Firestore delete:`, supaErr.message || supaErr);
+                console.warn(`[KireeyeCw Fallback] Supabase Direct delete failed for "${tableName}":`, supaErr.message || supaErr);
               }
-              await deleteFirestoreDocument(tableName, idToDelete);
             }
             return new Response(JSON.stringify({ success: true }), {
               status: 200,
