@@ -132,6 +132,18 @@ export default function AuthModal({
       }
     }
 
+    // Dynamic database lookup before matching credentials to support cross-device logins!
+    try {
+      console.log("[Auth] Dynamically syncing latest registered users from cloud database...");
+      const dbUsersRes = await fetch("/api/users").then((r) => r.json()).catch(() => null);
+      if (dbUsersRes && Array.isArray(dbUsersRes)) {
+        savedUsers = dbUsersRes;
+        localStorage.setItem("sre_registered_users", JSON.stringify(dbUsersRes));
+      }
+    } catch (dynamicFetchErr) {
+      console.warn("[Auth] Failed to fetch latest users, relying on offline cache:", dynamicFetchErr);
+    }
+
     // Resolve username to actual email for Supabase Auth checking
     let lookupEmail = email.trim();
     const foundUserByName = savedUsers.find(
@@ -415,9 +427,22 @@ export default function AuthModal({
       createdAt: new Date().toISOString()
     };
 
-    // Store in registered users array
-    const savedUsersRaw = localStorage.getItem("sre_registered_users");
-    const savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+    // Store in registered users array (dynamically sync latest from cloud database to avoid duplication!)
+    let savedUsers: any[] = [];
+    try {
+      console.log("[Auth] Syncing latest users list for duplicate check...");
+      const dbUsersRes = await fetch("/api/users").then((r) => r.json()).catch(() => null);
+      if (dbUsersRes && Array.isArray(dbUsersRes)) {
+        savedUsers = dbUsersRes;
+        localStorage.setItem("sre_registered_users", JSON.stringify(dbUsersRes));
+      } else {
+        const savedUsersRaw = localStorage.getItem("sre_registered_users");
+        savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+      }
+    } catch (dynamicSyncErr) {
+      const savedUsersRaw = localStorage.getItem("sre_registered_users");
+      savedUsers = savedUsersRaw ? JSON.parse(savedUsersRaw) : [];
+    }
     
     // Check if user already exists
     const duplicate = savedUsers.find((u: any) => u.email.toLowerCase().trim() === email.toLowerCase().trim());

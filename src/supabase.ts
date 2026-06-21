@@ -105,18 +105,27 @@ if (typeof window !== "undefined") {
   const interceptorFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : (input as any).url || "";
     if (typeof url === "string" && url.split("?")[0].startsWith("/api/")) {
+      const parsedUrl = new URL(url, window.location.origin);
+      const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+      const isSyncAuth = pathSegments[1] === "users" && pathSegments[2] === "sync-auth";
+
       try {
         const response = await originalFetch(input, init);
-        // If the backend returns server-offline/error codes or 404, we trigger the serverless direct fallback
-        if (response.status === 404 || response.status === 502 || response.status === 500) {
+        // If the backend returns server-offline/error codes or 404, we trigger the serverless direct fallback, except for sync-auth
+        if (!isSyncAuth && (response.status === 404 || response.status === 502 || response.status === 500)) {
           throw new Error("Backend offline. Netlify Serverless routing protocol engaged.");
         }
         return response;
       } catch (fetchError) {
+        if (isSyncAuth) {
+          // Do not attempt to treat sync-auth action as a database table. Let it return a clean error payload.
+          return new Response(JSON.stringify({ success: false, error: (fetchError as any).message || "Sync auth failed" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
         console.info("[KireeyeCw Netlify Fallback] Engagement protocol routing:", url);
         try {
-          const parsedUrl = new URL(url, window.location.origin);
-          const pathSegments = parsedUrl.pathname.split("/").filter(Boolean); // ["api", "properties", "123"]
           const resource = pathSegments[1]; // "properties", "users", "inquiries", etc.
           const resourceId = pathSegments[2]; // Optional ID
           
