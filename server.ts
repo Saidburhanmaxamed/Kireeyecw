@@ -11,6 +11,78 @@ import {
   deleteDoc as fireDeleteDoc, 
   collection as fireCollection 
 } from "firebase/firestore";
+import { createClient } from "@supabase/supabase-js";
+
+const DEFAULT_SUPABASE_URL = "https://hulfsiejwwvqaheaifkh.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bGZzaWVqd3d2cWFoZWFpZmtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODc2MDYsImV4cCI6MjA5NzY2MzYwNn0.zXaHrC9ueYzu1XDxyBHPiI_0OGKtnoTX5jXwhwyDoNY";
+
+function cleanUrl(url: any): string {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (trimmed.includes("google.com/url?") && trimmed.includes("q=")) {
+    try {
+      const urlObj = new URL(trimmed);
+      const q = urlObj.searchParams.get("q");
+      if (q && (q.startsWith("http://") || q.startsWith("https://"))) {
+        return q;
+      }
+    } catch (e) {}
+  }
+  return trimmed;
+}
+
+function getValidSupabaseUrl(): string {
+  const candidates = [
+    process.env.SUPABASE_URL,
+    process.env.VITE_SUPABASE_URL
+  ];
+  for (const raw of candidates) {
+    const cleaned = cleanUrl(raw);
+    if (cleaned && (cleaned.startsWith("http://") || cleaned.startsWith("https://"))) {
+      return cleaned;
+    }
+  }
+  return DEFAULT_SUPABASE_URL;
+}
+
+function getValidSupabaseKey(): string {
+  const candidates = [
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.VITE_SUPABASE_ANON_KEY
+  ];
+  for (const key of candidates) {
+    if (key && typeof key === "string" && key.trim().length > 30 && key.includes(".")) {
+      return key.trim();
+    }
+  }
+  // In case the user swapped SUPABASE_URL and SUPABASE_ANON_KEY in settings
+  const possibleSwapKey = process.env.SUPABASE_URL;
+  if (possibleSwapKey && typeof possibleSwapKey === "string" && possibleSwapKey.trim().length > 30 && possibleSwapKey.includes(".")) {
+    return possibleSwapKey.trim();
+  }
+  return DEFAULT_SUPABASE_ANON_KEY;
+}
+
+const supabaseUrl = getValidSupabaseUrl();
+const supabaseKey = getValidSupabaseKey();
+
+let supabaseServerInstance: any;
+try {
+  supabaseServerInstance = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false
+    }
+  });
+} catch (e: any) {
+  console.error("[Supabase Server] Critical creation failure, falling back:", e.message || e);
+  supabaseServerInstance = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false
+    }
+  });
+}
+
+export const supabaseServer = supabaseServerInstance;
 
 // Initialize Firebase server-side instance dynamically reading local configuration
 let firestoreDb: any = null;
@@ -68,6 +140,84 @@ const deleteServerFirestore = async (collectionName: string, id: string): Promis
     console.error(`Error deleting from ${collectionName} in Firestore backend:`, err);
     return false;
   }
+};
+
+const isSupabaseWorkingForTable = async (tableName: string): Promise<boolean> => {
+  try {
+    const { error } = await supabaseServer.from(tableName).select("id").limit(1);
+    if (error) {
+      if (error.code === '42P01') { // undefined_table
+        return false;
+      }
+      if (error.message && error.message.includes("does not exist")) {
+        return false;
+      }
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+const readDb = async (collectionName: string): Promise<any[]> => {
+  try {
+    const isUsable = await isSupabaseWorkingForTable(collectionName);
+    if (isUsable) {
+      const { data, error } = await supabaseServer.from(collectionName).select("*");
+      if (!error && data) {
+        console.log(`[Database Engine] Successfully read ${data.length} records of '${collectionName}' from Supabase.`);
+        return data;
+      } else if (error) {
+        console.warn(`[Database Engine] Supabase read on '${collectionName}' failed:`, error.message || error);
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[Database Engine] Supabase read exception on '${collectionName}':`, e.message || e);
+  }
+  return readServerFirestore(collectionName);
+};
+
+const writeDb = async (collectionName: string, id: string, data: any): Promise<any> => {
+  const sanitizedObj = JSON.parse(JSON.stringify(data));
+  try {
+    const isUsable = await isSupabaseWorkingForTable(collectionName);
+    if (isUsable) {
+      const { data: upserted, error } = await supabaseServer
+        .from(collectionName)
+        .upsert({ id, ...sanitizedObj })
+        .select();
+      if (!error && upserted && upserted.length > 0) {
+        console.log(`[Database Engine] Successfully upserted record ID '${id}' to Supabase table '${collectionName}'.`);
+        // Write to firestore in background for dual backup
+        writeServerFirestore(collectionName, id, sanitizedObj).catch(() => {});
+        return upserted[0];
+      } else if (error) {
+        console.warn(`[Database Engine] Supabase upsert on '${collectionName}' failed:`, error.message || error);
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[Database Engine] Supabase write exception on '${collectionName}':`, e.message || e);
+  }
+  return writeServerFirestore(collectionName, id, sanitizedObj);
+};
+
+const deleteDb = async (collectionName: string, id: string): Promise<boolean> => {
+  try {
+    const isUsable = await isSupabaseWorkingForTable(collectionName);
+    if (isUsable) {
+      const { error } = await supabaseServer.from(collectionName).delete().eq("id", id);
+      if (!error) {
+        console.log(`[Database Engine] Successfully deleted record ID '${id}' from Supabase table '${collectionName}'.`);
+        deleteServerFirestore(collectionName, id).catch(() => {});
+        return true;
+      } else {
+        console.warn(`[Database Engine] Supabase delete on '${collectionName}' failed:`, error.message || error);
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[Database Engine] Supabase delete exception on '${collectionName}':`, e.message || e);
+  }
+  return deleteServerFirestore(collectionName, id);
 };
 
 const PORT = 3000;
@@ -407,8 +557,8 @@ const restoreAllDatabaseEntries = async () => {
   console.log("[Restore Engine] Seeding and Firebase Firestore synchronization completed successfully!");
 };
 
-// Firebase Connection Status Testing API
-app.get("/api/supabase/status", async (req: Request, res: Response) => {
+// Supabase & Firebase Connection Status Testing API
+app.get(["/api/supabase/status", "/api/firebase/status"], async (req: Request, res: Response) => {
   let isConnected = false;
   let hasUsersTable = false;
   let hasPropertiesTable = false;
@@ -421,157 +571,81 @@ app.get("/api/supabase/status", async (req: Request, res: Response) => {
   let errorMessage = "";
 
   try {
-    if (firestoreDb) {
-      isConnected = true;
-      hasUsersTable = true;
-      hasPropertiesTable = true;
-      hasInquiriesTable = true;
-      hasTestimonialsTable = true;
-      hasAgenciesTable = true;
-      hasAgencyLogsTable = true;
-      hasNotificationsTable = true;
-      hasFavoritesTable = true;
+    // Attempt standard connection test by calling users
+    const { error } = await supabaseServer.from("users").select("id").limit(1);
+    
+    if (error && error.message && error.message.includes("fetch failed")) {
+      errorMessage = `Cannot contact Supabase database instance. Underlying network/TLS error: ${error.message}`;
     } else {
-      errorMessage = "Firestore database reference is not initialized.";
+      isConnected = true;
+    }
+
+    if (isConnected) {
+      const testTable = async (tableName: string) => {
+        try {
+          const { error: tblErr } = await supabaseServer.from(tableName).select("id").limit(1);
+          if (tblErr) {
+            if (tblErr.code === '42P01' || (tblErr.message && tblErr.message.includes("does not exist"))) {
+              return false;
+            }
+          }
+          return true;
+        } catch (e) {
+          return false;
+        }
+      };
+
+      hasUsersTable = await testTable("users");
+      hasPropertiesTable = await testTable("properties");
+      hasInquiriesTable = await testTable("inquiries");
+      hasTestimonialsTable = await testTable("testimonials");
+      hasAgenciesTable = await testTable("agencies");
+      hasAgencyLogsTable = await testTable("agency_logs");
+      hasNotificationsTable = await testTable("notifications");
+      hasFavoritesTable = await testTable("favorites");
     }
   } catch (err: any) {
     isConnected = false;
     errorMessage = err?.message || String(err);
   }
 
-  const creationSql = `-- Create Users Table
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  username TEXT,
-  role TEXT NOT NULL DEFAULT 'buyer',
-  phone TEXT NOT NULL,
-  password TEXT,
-  avatar TEXT,
-  approved BOOLEAN DEFAULT TRUE,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+  // Load local schema SQL for dashboard copying
+  let sqlContent = "";
+  try {
+    const schemaPath = path.join(process.cwd(), "supabase_schema.sql");
+    if (fs.existsSync(schemaPath)) {
+      sqlContent = fs.readFileSync(schemaPath, "utf8");
+    }
+  } catch (e) {
+    sqlContent = "-- Could not read schema template file.";
+  }
 
--- Create Properties Table
-CREATE TABLE IF NOT EXISTS properties (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  category TEXT NOT NULL,
-  type TEXT NOT NULL,
-  price NUMERIC NOT NULL,
-  location TEXT NOT NULL,
-  region TEXT NOT NULL,
-  status TEXT NOT NULL,
-  bedrooms INTEGER NOT NULL,
-  bathrooms INTEGER NOT NULL,
-  "areaSize" NUMERIC NOT NULL,
-  images TEXT[] NOT NULL,
-  "ownerId" TEXT NOT NULL,
-  "ownerName" TEXT NOT NULL,
-  "ownerPhone" TEXT NOT NULL,
-  "ownerWhatsapp" TEXT NOT NULL,
-  approved BOOLEAN DEFAULT FALSE,
-  featured BOOLEAN DEFAULT FALSE,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  "agencyId" TEXT,
-  "availableDate" TEXT,
-  dimensions TEXT,
-  "hasTitleDeed" BOOLEAN,
-  zoning TEXT,
-  "numShops" INTEGER,
-  "hasParking" BOOLEAN,
-  "rentalDeposit" NUMERIC,
-  "rentalPeriod" TEXT,
-  "includedUtilities" TEXT,
-  "paymentInstallments" BOOLEAN,
-  "downPaymentAmount" NUMERIC,
-  "carMake" TEXT,
-  "carModel" TEXT,
-  "carYear" INTEGER,
-  "carTransmission" TEXT,
-  "carFuelType" TEXT,
-  "carMileage" NUMERIC
-);
-
--- Create Inquiries Table
-CREATE TABLE IF NOT EXISTS inquiries (
-  id TEXT PRIMARY KEY,
-  "propertyId" TEXT NOT NULL,
-  "propertyTitle" TEXT NOT NULL,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  message TEXT NOT NULL,
-  date TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create Testimonials Table
-CREATE TABLE IF NOT EXISTS testimonials (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL,
-  comment TEXT NOT NULL,
-  avatar TEXT NOT NULL,
-  rating INTEGER NOT NULL DEFAULT 5
-);
-
--- Create Agencies Table
-CREATE TABLE IF NOT EXISTS agencies (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  logo TEXT,
-  location TEXT NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create Agency Logs Table
-CREATE TABLE IF NOT EXISTS agency_logs (
-  id TEXT PRIMARY KEY,
-  "agencyId" TEXT NOT NULL,
-  action TEXT NOT NULL,
-  "targetId" TEXT,
-  details TEXT,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create Notifications Table
-CREATE TABLE IF NOT EXISTS notifications (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'general',
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  read BOOLEAN DEFAULT FALSE
-);
-
--- Create Favorites Table
-CREATE TABLE IF NOT EXISTS favorites (
-  id TEXT PRIMARY KEY,
-  "userId" TEXT NOT NULL,
-  "propertyId" TEXT NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);`;
+  const allTablesOk = isConnected && 
+    hasUsersTable && 
+    hasPropertiesTable && 
+    hasInquiriesTable && 
+    hasTestimonialsTable && 
+    hasAgenciesTable && 
+    hasAgencyLogsTable && 
+    hasNotificationsTable && 
+    hasFavoritesTable;
 
   res.json({
     connected: isConnected,
-    tablesOk: isConnected,
-    hasUsersTable: isConnected,
-    hasPropertiesTable: isConnected,
-    hasInquiriesTable: isConnected,
-    hasTestimonialsTable: isConnected,
-    hasAgenciesTable: isConnected,
-    hasAgencyLogsTable: isConnected,
-    hasNotificationsTable: isConnected,
-    hasFavoritesTable: isConnected,
+    tablesOk: allTablesOk,
+    hasUsersTable,
+    hasPropertiesTable,
+    hasInquiriesTable,
+    hasTestimonialsTable,
+    hasAgenciesTable,
+    hasAgencyLogsTable,
+    hasNotificationsTable,
+    hasFavoritesTable,
     errorMessage,
-    sql: `-- Firebase Firestore Schema is active and managed automatically.`,
+    sql: sqlContent || `-- Ready to seed`,
     credentials: {
-      url: "Firestore Default Instance",
-      project_id: DEFAULT_DATABASE_ID
+      url: supabaseUrl,
+      project_id: "hulfsiejwwvqaheaifkh"
     }
   });
 });
@@ -579,7 +653,7 @@ CREATE TABLE IF NOT EXISTS favorites (
 // APIs Proxy Layer: PROPERTIES
 app.get("/api/properties", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("properties");
+    const list = await readDb("properties");
     if (list && list.length > 0) {
       return res.json(list);
     }
@@ -592,7 +666,7 @@ app.get("/api/properties", async (req: Request, res: Response) => {
 app.post("/api/properties", async (req: Request, res: Response) => {
   const propertyObj = req.body;
   try {
-    const saved = await writeServerFirestore("properties", propertyObj.id, propertyObj);
+    const saved = await writeDb("properties", propertyObj.id, propertyObj);
     if (saved) {
       const local = readLocalStore();
       local.properties = local.properties || [];
@@ -614,7 +688,7 @@ app.post("/api/properties", async (req: Request, res: Response) => {
 app.put("/api/properties", async (req: Request, res: Response) => {
   const propertyObj = req.body;
   try {
-    const saved = await writeServerFirestore("properties", propertyObj.id, propertyObj);
+    const saved = await writeDb("properties", propertyObj.id, propertyObj);
     if (saved) {
       const local = readLocalStore();
       local.properties = local.properties || [];
@@ -634,7 +708,7 @@ app.put("/api/properties", async (req: Request, res: Response) => {
 app.delete("/api/properties/:id", async (req: Request, res: Response) => {
   const propId = String(req.params.id);
   try {
-    await deleteServerFirestore("properties", propId);
+    await deleteDb("properties", propId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -647,7 +721,7 @@ app.delete("/api/properties/:id", async (req: Request, res: Response) => {
 // APIs Proxy Layer: USERS
 app.get("/api/users", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("users");
+    const list = await readDb("users");
     if (list && list.length > 0) {
       return res.json(list);
     }
@@ -663,10 +737,38 @@ app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Email is required" });
   }
 
+  let finalUserId = id || `user-${Date.now()}`;
+  let isSecureAuthUser = false;
+
+  // 1. Try to create the user in Supabase Authentication using Admin Service API
   try {
-    const targetId = id || `user-${Date.now()}`;
+    console.log(`[Auth Sync] Attempting to provision pre-confirmed user in Supabase Auth: ${email}`);
+    const { data: authUser, error: authErr } = await supabaseServer.auth.admin.createUser({
+      email: email.trim(),
+      password: password || "somali123",
+      email_confirm: true,
+      user_metadata: {
+        name: name || email.split("@")[0],
+        phone: phone || "+252610000000",
+        role: role || "agent",
+        approved: approved !== false
+      }
+    });
+
+    if (!authErr && authUser?.user) {
+      finalUserId = authUser.user.id;
+      isSecureAuthUser = true;
+      console.log(`[Auth Sync] Successfully created pre-confirmed Supabase Auth user: ${email} (UID: ${finalUserId})`);
+    } else if (authErr) {
+      console.log(`[Auth Sync] Supabase admin.createUser failed or not permitted: ${authErr.message}`);
+    }
+  } catch (sysAuthErr: any) {
+    console.warn(`[Auth Sync] Supabase Admin Auth skipped/unsupported: ${sysAuthErr.message || sysAuthErr}`);
+  }
+
+  try {
     const userObj = {
-      id: targetId,
+      id: finalUserId,
       email: email.trim(),
       name: name || email.split("@")[0],
       phone: phone || "+252610000000",
@@ -675,8 +777,8 @@ app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
       approved: approved !== false,
       createdAt: new Date().toISOString()
     };
-    await writeServerFirestore("users", targetId, userObj);
-    return res.json({ success: true, userId: targetId, user: userObj });
+    await writeDb("users", finalUserId, userObj);
+    return res.json({ success: true, userId: finalUserId, user: userObj, isSecure: isSecureAuthUser });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || "Failed to sync auth user via backend admin API" });
   }
@@ -685,7 +787,7 @@ app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
 app.post("/api/users", async (req: Request, res: Response) => {
   const userObj = req.body;
   try {
-    const saved = await writeServerFirestore("users", userObj.id, userObj);
+    const saved = await writeDb("users", userObj.id, userObj);
     if (saved) {
       const local = readLocalStore();
       local.users = local.users || [];
@@ -707,7 +809,7 @@ app.post("/api/users", async (req: Request, res: Response) => {
 app.put("/api/users", async (req: Request, res: Response) => {
   const userObj = req.body;
   try {
-    const saved = await writeServerFirestore("users", userObj.id, userObj);
+    const saved = await writeDb("users", userObj.id, userObj);
     if (saved) {
       const local = readLocalStore();
       local.users = local.users || [];
@@ -727,7 +829,7 @@ app.put("/api/users", async (req: Request, res: Response) => {
 app.delete("/api/users/:id", async (req: Request, res: Response) => {
   const userId = String(req.params.id);
   try {
-    await deleteServerFirestore("users", userId);
+    await deleteDb("users", userId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -740,7 +842,7 @@ app.delete("/api/users/:id", async (req: Request, res: Response) => {
 // APIs Proxy Layer: INQUIRIES
 app.get("/api/inquiries", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("inquiries");
+    const list = await readDb("inquiries");
     if (list && list.length > 0) {
       return res.json(list);
     }
@@ -753,7 +855,7 @@ app.get("/api/inquiries", async (req: Request, res: Response) => {
 app.post("/api/inquiries", async (req: Request, res: Response) => {
   const inquiryObj = req.body;
   try {
-    const saved = await writeServerFirestore("inquiries", inquiryObj.id, inquiryObj);
+    const saved = await writeDb("inquiries", inquiryObj.id, inquiryObj);
     if (saved) {
       const local = readLocalStore();
       local.inquiries = local.inquiries || [];
@@ -774,7 +876,7 @@ app.post("/api/inquiries", async (req: Request, res: Response) => {
 app.delete("/api/inquiries/:id", async (req: Request, res: Response) => {
   const inquiryId = String(req.params.id);
   try {
-    await deleteServerFirestore("inquiries", inquiryId);
+    await deleteDb("inquiries", inquiryId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -787,7 +889,7 @@ app.delete("/api/inquiries/:id", async (req: Request, res: Response) => {
 // OTHER LOGS, AGENCIES & TESTIMONIALS WITH SIMILAR PROXIES
 app.get("/api/testimonials", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("testimonials");
+    const list = await readDb("testimonials");
     if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
@@ -798,7 +900,7 @@ app.get("/api/testimonials", async (req: Request, res: Response) => {
 app.post("/api/testimonials", async (req: Request, res: Response) => {
   const testObj = req.body;
   try {
-    const saved = await writeServerFirestore("testimonials", testObj.id, testObj);
+    const saved = await writeDb("testimonials", testObj.id, testObj);
     if (saved) {
       const local = readLocalStore();
       local.testimonials = local.testimonials || [];
@@ -818,7 +920,7 @@ app.post("/api/testimonials", async (req: Request, res: Response) => {
 
 app.get("/api/agencies", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("agencies");
+    const list = await readDb("agencies");
     if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
@@ -829,7 +931,7 @@ app.get("/api/agencies", async (req: Request, res: Response) => {
 app.post("/api/agencies", async (req: Request, res: Response) => {
   const agencyObj = req.body;
   try {
-    const saved = await writeServerFirestore("agencies", agencyObj.id, agencyObj);
+    const saved = await writeDb("agencies", agencyObj.id, agencyObj);
     if (saved) {
       const local = readLocalStore();
       local.agencies = local.agencies || [];
@@ -849,7 +951,7 @@ app.post("/api/agencies", async (req: Request, res: Response) => {
 
 app.get("/api/agency-logs", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("agency_logs");
+    const list = await readDb("agency_logs");
     if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
@@ -860,7 +962,7 @@ app.get("/api/agency-logs", async (req: Request, res: Response) => {
 app.post("/api/agency-logs", async (req: Request, res: Response) => {
   const logObj = req.body;
   try {
-    const saved = await writeServerFirestore("agency_logs", logObj.id, logObj);
+    const saved = await writeDb("agency_logs", logObj.id, logObj);
     if (saved) {
       const local = readLocalStore();
       local.agencyLogs = local.agencyLogs || [];
@@ -880,7 +982,7 @@ app.post("/api/agency-logs", async (req: Request, res: Response) => {
 
 app.get("/api/notifications", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("notifications");
+    const list = await readDb("notifications");
     if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
@@ -891,7 +993,7 @@ app.get("/api/notifications", async (req: Request, res: Response) => {
 app.post("/api/notifications", async (req: Request, res: Response) => {
   const notifObj = req.body;
   try {
-    const saved = await writeServerFirestore("notifications", notifObj.id, notifObj);
+    const saved = await writeDb("notifications", notifObj.id, notifObj);
     if (saved) {
       const local = readLocalStore();
       local.notifications = local.notifications || [];
@@ -914,7 +1016,7 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
   try {
     if (Array.isArray(updatedNotifs)) {
       for (const n of updatedNotifs) {
-        await writeServerFirestore("notifications", n.id, n);
+        await writeDb("notifications", n.id, n);
       }
     }
   } catch (e) {}
@@ -927,7 +1029,7 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
 
 app.get("/api/favorites", async (req: Request, res: Response) => {
   try {
-    const list = await readServerFirestore("favorites");
+    const list = await readDb("favorites");
     if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
@@ -938,7 +1040,7 @@ app.get("/api/favorites", async (req: Request, res: Response) => {
 app.post("/api/favorites", async (req: Request, res: Response) => {
   const favObj = req.body;
   try {
-    const saved = await writeServerFirestore("favorites", favObj.id, favObj);
+    const saved = await writeDb("favorites", favObj.id, favObj);
     if (saved) {
       const local = readLocalStore();
       local.favorites = local.favorites || [];

@@ -94,13 +94,13 @@ export default function AdminDashboard({
   const fetchSupabaseStatus = async () => {
     setLoadingSupaStatus(true);
     try {
-      const res = await fetch("/api/firebase/status");
+      const res = await fetch("/api/supabase/status");
       if (res.ok) {
         const data = await res.json();
         setSupabaseStatus(data);
       }
     } catch (e) {
-      console.error("Failed loading Firebase status:", e);
+      console.error("Failed loading Supabase status:", e);
     } finally {
       setLoadingSupaStatus(false);
     }
