@@ -88,6 +88,47 @@
         "rating": { "type": "number" }
       },
       "required": ["id", "name", "role", "comment", "avatar", "rating"]
+    },
+    "Agency": {
+      "title": "Agency",
+      "description": "Registered real estate agency groups",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "logo": { "type": "string" },
+        "location": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "phone", "location"]
+    },
+    "AgencyLog": {
+      "title": "AgencyLog",
+      "description": "Compliance and auditing log entries for agencies",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "agencyId": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "agencyId", "action", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Bookmarks catalog for buyers tracking specific property listings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "propertyId", "createdAt"]
     }
   },
   "firestore": {
@@ -110,6 +151,18 @@
     "/testimonials/{testimonialId}": {
       "schema": "Testimonial",
       "description": "User feedback testimonials"
+    },
+    "/agencies/{agencyId}": {
+      "schema": "Agency",
+      "description": "Agency properties and profile databases"
+    },
+    "/agency_logs/{logId}": {
+      "schema": "AgencyLog",
+      "description": "Agency activity logs"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "Buyer's bookmarks"
     }
   }
 }

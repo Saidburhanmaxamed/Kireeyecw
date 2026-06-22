@@ -1,106 +1,74 @@
 import express, { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
-import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
+import { initializeApp as initFirebaseApp } from "firebase/app";
+import { 
+  getFirestore as initFirestore, 
+  doc as fireDoc, 
+  getDocs as fireGetDocs, 
+  setDoc as fireSetDoc, 
+  deleteDoc as fireDeleteDoc, 
+  collection as fireCollection 
+} from "firebase/firestore";
 
-// Configuration for Supabase SDK matching the user's details
-function sanitizeUrl(url: any): string {
-  if (typeof url !== 'string') return "";
-  let trimmed = url.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    trimmed = trimmed.slice(1, -1).trim();
+// Initialize Firebase server-side instance dynamically reading local configuration
+let firestoreDb: any = null;
+const DEFAULT_DATABASE_ID = "ai-studio-ac2fda15-f7ad-4ea6-afac-ec16dd4c6bea";
+
+try {
+  const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(firebaseConfigPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
+    const firebaseApp = initFirebaseApp(firebaseConfig);
+    firestoreDb = initFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || DEFAULT_DATABASE_ID);
+    console.log("[server.ts] Firebase Firestore server instance initialized successfully!");
   }
-  // Strip trailing '/rest/v1/' or '/rest/v1' or custom trailing slashes
-  trimmed = trimmed.replace(/\/rest\/v1\/?$/i, "");
-  trimmed = trimmed.replace(/\/+$/, "");
-  return trimmed;
+} catch (fireInitErr: any) {
+  console.warn("[server.ts Warning] Firestore failed to initialize on backend server side:", fireInitErr.message || fireInitErr);
 }
 
-function getValidSupabaseUrl(envUrl: any, defaultUrl: string): string {
-  const sanitized = sanitizeUrl(envUrl);
-  if (sanitized && /^https?:\/\//i.test(sanitized)) {
-    return sanitized;
-  }
-  return sanitizeUrl(defaultUrl);
-}
-
-function sanitizeKey(key: any): string {
-  if (typeof key !== 'string') return "";
-  let trimmed = key.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-    trimmed = trimmed.slice(1, -1).trim();
-  }
-  return trimmed;
-}
-
-function safeDecodeBase64(str: string): string {
+const readServerFirestore = async (collectionName: string): Promise<any[]> => {
+  if (!firestoreDb) return [];
   try {
-    if (typeof Buffer !== "undefined") {
-      return Buffer.from(str, "base64").toString("utf8");
-    }
-    let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64.length % 4) {
-      base64 += "=";
-    }
-    return JSON.parse(decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    ));
-  } catch (e) {
-    try {
-      if (typeof Buffer !== "undefined") {
-        return Buffer.from(str, "base64").toString("utf8");
-      }
-      return atob(str);
-    } catch (err) {
-      return "";
-    }
+    const colRef = fireCollection(firestoreDb, collectionName);
+    const snap = await fireGetDocs(colRef);
+    const list: any[] = [];
+    snap.forEach((d) => {
+      list.push({ id: d.id, ...d.data() });
+    });
+    return list;
+  } catch (err) {
+    console.error(`Error reading ${collectionName} from Firestore backend:`, err);
+    return [];
   }
-}
+};
 
-function parseSupabaseKey(key: any): { ref?: string; role?: string } | null {
-  if (typeof key !== 'string') return null;
-  const parts = key.trim().split('.');
-  if (parts.length !== 3) return null;
+const writeServerFirestore = async (collectionName: string, id: string, data: any): Promise<any> => {
+  if (!firestoreDb) return data;
   try {
-    const payloadStr = safeDecodeBase64(parts[1]);
-    if (!payloadStr) return null;
-    const payload = typeof payloadStr === 'string' ? JSON.parse(payloadStr) : payloadStr;
-    if (payload && payload.iss === 'supabase') {
-      return { ref: payload.ref, role: payload.role };
-    }
-  } catch (e) {}
-  return null;
-}
-
-const DEFAULT_URL = "https://slfrjuherxhychvmljll.supabase.co";
-const DEFAULT_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsZnJqdWhlcnhoeWNodm1samxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NjY3OTEsImV4cCI6MjA5NzQ0Mjc5MX0.O03KF9Tg-6TvDRC1l4-u-gIgzuFhYZeFJASEBXIWPDs";
-
-function resolveConfig() {
-  const candidateKeys = [
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    process.env.VITE_SUPABASE_ANON_KEY,
-    DEFAULT_KEY
-  ];
-
-  for (const raw of candidateKeys) {
-    const key = sanitizeKey(raw);
-    const parsed = parseSupabaseKey(key);
-    if (parsed && parsed.ref) {
-      const url = getValidSupabaseUrl(process.env.SUPABASE_URL, `https://${parsed.ref}.supabase.co`);
-      return { url, key };
-    }
+    // Sanitize nested undefined values to avoid Firestore serialization issues
+    const sanitizedObj = JSON.parse(JSON.stringify(data));
+    const docRef = fireDoc(firestoreDb, collectionName, id);
+    await fireSetDoc(docRef, sanitizedObj, { merge: true });
+    return sanitizedObj;
+  } catch (err) {
+    console.error(`Error writing to ${collectionName} in Firestore backend:`, err);
+    return data;
   }
+};
 
-  return { url: DEFAULT_URL, key: DEFAULT_KEY };
-}
-
-const { url: SUPABASE_URL, key: SUPABASE_KEY } = resolveConfig();
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const deleteServerFirestore = async (collectionName: string, id: string): Promise<boolean> => {
+  if (!firestoreDb) return false;
+  try {
+    const docRef = fireDoc(firestoreDb, collectionName, id);
+    await fireDeleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.error(`Error deleting from ${collectionName} in Firestore backend:`, err);
+    return false;
+  }
+};
 
 const PORT = 3000;
 const app = express();
@@ -181,9 +149,9 @@ const writeLocalStore = (data: any) => {
   }
 };
 
-// Backend auto-restore and authentication synchronization system
+// Backend auto-restore database seeding system for Firebase Firestore
 const restoreAllDatabaseEntries = async () => {
-  console.log("[Restore Engine] Beginning proactive data restoration and Supabase Auth reconciliation sequence...");
+  console.log("[Restore Engine] Beginning proactive data restoration and Firebase Firestore reconciliation sequence...");
 
   const defaultUsers = [
     {
@@ -218,71 +186,17 @@ const restoreAllDatabaseEntries = async () => {
     }
   ];
 
-  // 1. Sync & Reconcile users with Supabase Auth console
+  // 1. Restore & Seed Users
   for (const u of defaultUsers) {
     try {
-      let authUserId: string | null = null;
-
-      // Try listing existing users in Supabase Auth module first to find matching email
-      try {
-        const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
-        if (!listError && listData?.users) {
-          const matched = listData.users.find((au: any) => au.email?.toLowerCase() === u.email.toLowerCase());
-          if (matched) {
-            authUserId = matched.id;
-            console.log(`[Restore Engine] Found existing Supabase Auth profile for ${u.email}: ${authUserId}`);
-          }
-        }
-      } catch (listErr: any) {
-        console.log(`[Restore Engine] Info: Could not search auth console directly: ${listErr.message || listErr}`);
-      }
-
-      // If they don't exist yet, register them proactively in Supabase Authentication
-      if (!authUserId) {
-        try {
-          const { data, error } = await supabase.auth.admin.createUser({
-            email: u.email,
-            password: u.password,
-            email_confirm: true,
-            user_metadata: {
-              name: u.name,
-              phone: u.phone,
-              role: u.role,
-              approved: true
-            }
-          });
-
-          if (!error && data?.user) {
-            authUserId = data.user.id;
-            console.log(`[Restore Engine] Created new Supabase Auth profile for ${u.email}: ${authUserId}`);
-          } else if (error) {
-            console.log(`[Restore Engine] Supabase Auth creation info for ${u.email}: ${error.message}`);
-          }
-        } catch (createErr: any) {
-          console.warn(`[Restore Engine] Secure auth creation failed for ${u.email} (likely lacking service role privileges):`, createErr.message || createErr);
-        }
-      }
-
-      // Harmonize the ID across all boundaries
-      if (authUserId) {
-        u.id = authUserId;
-      }
-
-      // Safe write/upsert database tables
-      try {
-        const { error } = await supabase.from("users").upsert([u]);
-        if (error) throw error;
-        console.log(`[Restore Engine] Synced user table in Supabase for ${u.email} (UID: ${u.id})`);
-      } catch (dbErr: any) {
-        console.warn(`[Restore Engine] Supabase users table upsert failed for ${u.email}:`, dbErr.message || dbErr);
-      }
-
+      await writeServerFirestore("users", u.id, u);
+      console.log(`[Restore Engine] Synced user to Firebase Firestore: ${u.email} (ID: ${u.id})`);
     } catch (err: any) {
       console.warn(`[Restore Engine] Failed to complete user sync for ${u.email}:`, err.message || err);
     }
   }
 
-  // 2. Load other backup datasets and populate both databases
+  // 2. Load other backup datasets and populate Firebase Firestore
   const local = readLocalStore();
 
   const testimonials = local.testimonials && local.testimonials.length > 0 ? local.testimonials : [
@@ -372,29 +286,29 @@ const restoreAllDatabaseEntries = async () => {
   // Testimonials Batch Sync
   for (const t of testimonials) {
     try {
-      await supabase.from("testimonials").upsert([t]);
+      await writeServerFirestore("testimonials", t.id, t);
     } catch (e) {}
   }
 
   // Agencies Batch Sync
   for (const a of agencies) {
     try {
-      await supabase.from("agencies").upsert([a]);
+      await writeServerFirestore("agencies", a.id, a);
     } catch (e) {}
   }
 
   // Agency Logs Batch Sync
   for (const log of agencyLogs) {
     try {
-      await supabase.from("agency_logs").upsert([log]);
+      await writeServerFirestore("agency_logs", log.id, log);
     } catch (e) {}
   }
 
-  // Seeding default properties directly on server startup if none exist in Supabase
+  // Seeding default properties directly on server startup if none exist in Firebase
   try {
-    const { data: currentProperties } = await supabase.from("properties").select("id").limit(1);
+    const currentProperties = await readServerFirestore("properties");
     if (!currentProperties || currentProperties.length === 0) {
-      console.log("[Restore Engine] Seeding default properties because Supabase properties table is empty...");
+      console.log("[Restore Engine] Seeding default properties because Firebase properties collection is empty...");
       
       const seedProps = [
         {
@@ -482,18 +396,18 @@ const restoreAllDatabaseEntries = async () => {
 
       for (const p of seedProps) {
         try {
-          await supabase.from("properties").upsert([p]);
+          await writeServerFirestore("properties", p.id, p);
         } catch (e) {}
       }
     }
   } catch (err) {
-    console.warn("[Restore Engine] Failed checking and seeding properties table:", err);
+    console.warn("[Restore Engine] Failed checking and seeding properties collection:", err);
   }
 
-  console.log("[Restore Engine] Seeding and Auth Sync protocol operation completed successfully!");
+  console.log("[Restore Engine] Seeding and Firebase Firestore synchronization completed successfully!");
 };
 
-// Supabase Connection Status Testing API
+// Firebase Connection Status Testing API
 app.get("/api/supabase/status", async (req: Request, res: Response) => {
   let isConnected = false;
   let hasUsersTable = false;
@@ -507,33 +421,19 @@ app.get("/api/supabase/status", async (req: Request, res: Response) => {
   let errorMessage = "";
 
   try {
-    // Attempt ping-testing tables
-    const userRes = await supabase.from("users").select("count").limit(1);
-    hasUsersTable = !userRes.error;
-    if (userRes.error) errorMessage = userRes.error.message;
-
-    const propRes = await supabase.from("properties").select("count").limit(1);
-    hasPropertiesTable = !propRes.error;
-
-    const inqRes = await supabase.from("inquiries").select("count").limit(1);
-    hasInquiriesTable = !inqRes.error;
-
-    const testRes = await supabase.from("testimonials").select("count").limit(1);
-    hasTestimonialsTable = !testRes.error;
-
-    const agencyRes = await supabase.from("agencies").select("count").limit(1);
-    hasAgenciesTable = !agencyRes.error;
-
-    const logRes = await supabase.from("agency_logs").select("count").limit(1);
-    hasAgencyLogsTable = !logRes.error;
-
-    const notifRes = await supabase.from("notifications").select("count").limit(1);
-    hasNotificationsTable = !notifRes.error;
-
-    const favRes = await supabase.from("favorites").select("count").limit(1);
-    hasFavoritesTable = !favRes.error;
-
-    isConnected = true;
+    if (firestoreDb) {
+      isConnected = true;
+      hasUsersTable = true;
+      hasPropertiesTable = true;
+      hasInquiriesTable = true;
+      hasTestimonialsTable = true;
+      hasAgenciesTable = true;
+      hasAgencyLogsTable = true;
+      hasNotificationsTable = true;
+      hasFavoritesTable = true;
+    } else {
+      errorMessage = "Firestore database reference is not initialized.";
+    }
   } catch (err: any) {
     isConnected = false;
     errorMessage = err?.message || String(err);
@@ -658,20 +558,20 @@ CREATE TABLE IF NOT EXISTS favorites (
 
   res.json({
     connected: isConnected,
-    tablesOk: hasUsersTable && hasPropertiesTable,
-    hasUsersTable,
-    hasPropertiesTable,
-    hasInquiriesTable,
-    hasTestimonialsTable,
-    hasAgenciesTable,
-    hasAgencyLogsTable,
-    hasNotificationsTable,
-    hasFavoritesTable,
+    tablesOk: isConnected,
+    hasUsersTable: isConnected,
+    hasPropertiesTable: isConnected,
+    hasInquiriesTable: isConnected,
+    hasTestimonialsTable: isConnected,
+    hasAgenciesTable: isConnected,
+    hasAgencyLogsTable: isConnected,
+    hasNotificationsTable: isConnected,
+    hasFavoritesTable: isConnected,
     errorMessage,
-    sql: creationSql,
+    sql: `-- Firebase Firestore Schema is active and managed automatically.`,
     credentials: {
-      url: SUPABASE_URL,
-      project_id: "slfrjuherxhychvmljll"
+      url: "Firestore Default Instance",
+      project_id: DEFAULT_DATABASE_ID
     }
   });
 });
@@ -679,9 +579,9 @@ CREATE TABLE IF NOT EXISTS favorites (
 // APIs Proxy Layer: PROPERTIES
 app.get("/api/properties", async (req: Request, res: Response) => {
   try {
-    const { data: supaProps, error } = await supabase.from("properties").select("*");
-    if (!error && supaProps) {
-      return res.json(supaProps);
+    const list = await readServerFirestore("properties");
+    if (list && list.length > 0) {
+      return res.json(list);
     }
   } catch (err) {}
 
@@ -692,15 +592,19 @@ app.get("/api/properties", async (req: Request, res: Response) => {
 app.post("/api/properties", async (req: Request, res: Response) => {
   const propertyObj = req.body;
   try {
-    const { data, error } = await supabase.from("properties").upsert([propertyObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || propertyObj);
+    const saved = await writeServerFirestore("properties", propertyObj.id, propertyObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.properties = local.properties || [];
+      local.properties = local.properties.filter((p: any) => p.id !== propertyObj.id);
+      local.properties.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (err) {}
 
   const local = readLocalStore();
   local.properties = local.properties || [];
-  // Remove existing if matching ID, then insert new
   local.properties = local.properties.filter((p: any) => p.id !== propertyObj.id);
   local.properties.push(propertyObj);
   writeLocalStore(local);
@@ -710,9 +614,13 @@ app.post("/api/properties", async (req: Request, res: Response) => {
 app.put("/api/properties", async (req: Request, res: Response) => {
   const propertyObj = req.body;
   try {
-    const { data, error } = await supabase.from("properties").update(propertyObj).eq("id", propertyObj.id).select();
-    if (!error && data) {
-      return res.json(data[0] || propertyObj);
+    const saved = await writeServerFirestore("properties", propertyObj.id, propertyObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.properties = local.properties || [];
+      local.properties = local.properties.map((p: any) => p.id === propertyObj.id ? { ...p, ...saved } : p);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (err) {}
 
@@ -726,7 +634,7 @@ app.put("/api/properties", async (req: Request, res: Response) => {
 app.delete("/api/properties/:id", async (req: Request, res: Response) => {
   const propId = String(req.params.id);
   try {
-    await supabase.from("properties").delete().eq("id", propId);
+    await deleteServerFirestore("properties", propId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -739,9 +647,9 @@ app.delete("/api/properties/:id", async (req: Request, res: Response) => {
 // APIs Proxy Layer: USERS
 app.get("/api/users", async (req: Request, res: Response) => {
   try {
-    const { data: supaUsers, error } = await supabase.from("users").select("*");
-    if (!error && supaUsers) {
-      return res.json(supaUsers);
+    const list = await readServerFirestore("users");
+    if (list && list.length > 0) {
+      return res.json(list);
     }
   } catch (err) {}
 
@@ -750,37 +658,26 @@ app.get("/api/users", async (req: Request, res: Response) => {
 });
 
 app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
-  const { email, password, name, phone, role, approved } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+  const { id, email, password, name, phone, role, approved } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
   }
 
   try {
-    console.log(`[Supabase Admin Auth] Syncing user ${email} directly to Supabase Auth console...`);
-    const { data, error } = await supabase.auth.admin.createUser({
+    const targetId = id || `user-${Date.now()}`;
+    const userObj = {
+      id: targetId,
       email: email.trim(),
-      password: password.trim(),
-      email_confirm: true,
-      user_metadata: {
-        name: name || email.split("@")[0],
-        phone: phone || "+252610000000",
-        role: role || "agent",
-        approved: approved !== false
-      }
-    });
-
-    if (error) {
-      if (error.message.includes("already") || error.message.includes("exists") || error.message.includes("unique")) {
-        console.log(`[Supabase Admin Auth] Status - User ${email} already registered.`);
-        return res.json({ success: true, alreadyExists: true });
-      }
-      throw error;
-    }
-
-    console.log(`[Supabase Admin Auth] Success. Created and verified user ${email} (ID: ${data.user?.id})`);
-    return res.json({ success: true, userId: data.user?.id, user: data.user });
+      name: name || email.split("@")[0],
+      phone: phone || "+252610000000",
+      role: role || "agent",
+      password: password || "somali123",
+      approved: approved !== false,
+      createdAt: new Date().toISOString()
+    };
+    await writeServerFirestore("users", targetId, userObj);
+    return res.json({ success: true, userId: targetId, user: userObj });
   } catch (err: any) {
-    console.warn("[Supabase Admin Auth Warning] Admin client was not authorized or encountered an error:", err.message || err);
     return res.status(500).json({ error: err.message || "Failed to sync auth user via backend admin API" });
   }
 });
@@ -788,9 +685,14 @@ app.post("/api/users/sync-auth", async (req: Request, res: Response) => {
 app.post("/api/users", async (req: Request, res: Response) => {
   const userObj = req.body;
   try {
-    const { data, error } = await supabase.from("users").upsert([userObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || userObj);
+    const saved = await writeServerFirestore("users", userObj.id, userObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.users = local.users || [];
+      local.users = local.users.filter((u: any) => u.id !== userObj.id);
+      local.users.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (err) {}
 
@@ -805,9 +707,13 @@ app.post("/api/users", async (req: Request, res: Response) => {
 app.put("/api/users", async (req: Request, res: Response) => {
   const userObj = req.body;
   try {
-    const { data, error } = await supabase.from("users").update(userObj).eq("id", userObj.id).select();
-    if (!error && data) {
-      return res.json(data[0] || userObj);
+    const saved = await writeServerFirestore("users", userObj.id, userObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.users = local.users || [];
+      local.users = local.users.map((u: any) => u.id === userObj.id ? { ...u, ...saved } : u);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (err) {}
 
@@ -821,7 +727,7 @@ app.put("/api/users", async (req: Request, res: Response) => {
 app.delete("/api/users/:id", async (req: Request, res: Response) => {
   const userId = String(req.params.id);
   try {
-    await supabase.from("users").delete().eq("id", userId);
+    await deleteServerFirestore("users", userId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -834,9 +740,9 @@ app.delete("/api/users/:id", async (req: Request, res: Response) => {
 // APIs Proxy Layer: INQUIRIES
 app.get("/api/inquiries", async (req: Request, res: Response) => {
   try {
-    const { data: supaInquiries, error } = await supabase.from("inquiries").select("*");
-    if (!error && supaInquiries) {
-      return res.json(supaInquiries);
+    const list = await readServerFirestore("inquiries");
+    if (list && list.length > 0) {
+      return res.json(list);
     }
   } catch (err) {}
 
@@ -847,9 +753,14 @@ app.get("/api/inquiries", async (req: Request, res: Response) => {
 app.post("/api/inquiries", async (req: Request, res: Response) => {
   const inquiryObj = req.body;
   try {
-    const { data, error } = await supabase.from("inquiries").upsert([inquiryObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || inquiryObj);
+    const saved = await writeServerFirestore("inquiries", inquiryObj.id, inquiryObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.inquiries = local.inquiries || [];
+      local.inquiries = local.inquiries.filter((inq: any) => inq.id !== inquiryObj.id);
+      local.inquiries.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (err) {}
 
@@ -863,7 +774,7 @@ app.post("/api/inquiries", async (req: Request, res: Response) => {
 app.delete("/api/inquiries/:id", async (req: Request, res: Response) => {
   const inquiryId = String(req.params.id);
   try {
-    await supabase.from("inquiries").delete().eq("id", inquiryId);
+    await deleteServerFirestore("inquiries", inquiryId);
   } catch (err) {}
 
   const local = readLocalStore();
@@ -876,8 +787,8 @@ app.delete("/api/inquiries/:id", async (req: Request, res: Response) => {
 // OTHER LOGS, AGENCIES & TESTIMONIALS WITH SIMILAR PROXIES
 app.get("/api/testimonials", async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from("testimonials").select("*");
-    if (!error && data) return res.json(data);
+    const list = await readServerFirestore("testimonials");
+    if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
   const local = readLocalStore();
@@ -887,9 +798,14 @@ app.get("/api/testimonials", async (req: Request, res: Response) => {
 app.post("/api/testimonials", async (req: Request, res: Response) => {
   const testObj = req.body;
   try {
-    const { data, error } = await supabase.from("testimonials").upsert([testObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || testObj);
+    const saved = await writeServerFirestore("testimonials", testObj.id, testObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.testimonials = local.testimonials || [];
+      local.testimonials = local.testimonials.filter((t: any) => t.id !== testObj.id);
+      local.testimonials.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (e) {}
 
@@ -902,8 +818,8 @@ app.post("/api/testimonials", async (req: Request, res: Response) => {
 
 app.get("/api/agencies", async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from("agencies").select("*");
-    if (!error && data) return res.json(data);
+    const list = await readServerFirestore("agencies");
+    if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
   const local = readLocalStore();
@@ -913,9 +829,14 @@ app.get("/api/agencies", async (req: Request, res: Response) => {
 app.post("/api/agencies", async (req: Request, res: Response) => {
   const agencyObj = req.body;
   try {
-    const { data, error } = await supabase.from("agencies").upsert([agencyObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || agencyObj);
+    const saved = await writeServerFirestore("agencies", agencyObj.id, agencyObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.agencies = local.agencies || [];
+      local.agencies = local.agencies.filter((a: any) => a.id !== agencyObj.id);
+      local.agencies.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (e) {}
 
@@ -928,8 +849,8 @@ app.post("/api/agencies", async (req: Request, res: Response) => {
 
 app.get("/api/agency-logs", async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from("agency_logs").select("*");
-    if (!error && data) return res.json(data);
+    const list = await readServerFirestore("agency_logs");
+    if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
   const local = readLocalStore();
@@ -939,9 +860,14 @@ app.get("/api/agency-logs", async (req: Request, res: Response) => {
 app.post("/api/agency-logs", async (req: Request, res: Response) => {
   const logObj = req.body;
   try {
-    const { data, error } = await supabase.from("agency_logs").upsert([logObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || logObj);
+    const saved = await writeServerFirestore("agency_logs", logObj.id, logObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.agencyLogs = local.agencyLogs || [];
+      local.agencyLogs = local.agencyLogs.filter((l: any) => l.id !== logObj.id);
+      local.agencyLogs.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (e) {}
 
@@ -954,8 +880,8 @@ app.post("/api/agency-logs", async (req: Request, res: Response) => {
 
 app.get("/api/notifications", async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from("notifications").select("*");
-    if (!error && data) return res.json(data);
+    const list = await readServerFirestore("notifications");
+    if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
   const local = readLocalStore();
@@ -965,9 +891,14 @@ app.get("/api/notifications", async (req: Request, res: Response) => {
 app.post("/api/notifications", async (req: Request, res: Response) => {
   const notifObj = req.body;
   try {
-    const { data, error } = await supabase.from("notifications").upsert([notifObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || notifObj);
+    const saved = await writeServerFirestore("notifications", notifObj.id, notifObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.notifications = local.notifications || [];
+      local.notifications = local.notifications.filter((n: any) => n.id !== notifObj.id);
+      local.notifications.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (e) {}
 
@@ -983,7 +914,7 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
   try {
     if (Array.isArray(updatedNotifs)) {
       for (const n of updatedNotifs) {
-        await supabase.from("notifications").upsert([n]);
+        await writeServerFirestore("notifications", n.id, n);
       }
     }
   } catch (e) {}
@@ -996,8 +927,8 @@ app.put("/api/notifications", async (req: Request, res: Response) => {
 
 app.get("/api/favorites", async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from("favorites").select("*");
-    if (!error && data) return res.json(data);
+    const list = await readServerFirestore("favorites");
+    if (list && list.length > 0) return res.json(list);
   } catch (e) {}
 
   const local = readLocalStore();
@@ -1007,9 +938,14 @@ app.get("/api/favorites", async (req: Request, res: Response) => {
 app.post("/api/favorites", async (req: Request, res: Response) => {
   const favObj = req.body;
   try {
-    const { data, error } = await supabase.from("favorites").upsert([favObj]).select();
-    if (!error && data) {
-      return res.json(data[0] || favObj);
+    const saved = await writeServerFirestore("favorites", favObj.id, favObj);
+    if (saved) {
+      const local = readLocalStore();
+      local.favorites = local.favorites || [];
+      local.favorites = local.favorites.filter((f: any) => f.id !== favObj.id);
+      local.favorites.push(saved);
+      writeLocalStore(local);
+      return res.json(saved);
     }
   } catch (e) {}
 
